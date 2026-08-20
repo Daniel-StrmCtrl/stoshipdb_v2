@@ -1,0 +1,799 @@
+<!-- STO Ship DB — single self-contained page.
+     Data is derived from the public STO T6 ship spreadsheet. On load it uses an
+     embedded snapshot for instant paint, then refreshes from the live sheet and
+     caches the result in localStorage for 24h (so at most one fetch per day per visitor). -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>STO Ship DB</title>
+<style>
+  :root{
+    --bg:#000; --text:#fff; --muted:#a1a1aa; --accent:#3b82f6;
+    --panel-border:rgba(255,255,255,.55);
+    --field-bg:#18181b; --field-border:#3f3f46; --field-hover:#52525b;
+    --row-divider:#27272a; --row-hover:#18181b; --th-bg:#18181b;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg); color:var(--text);
+    font:16px/1.45 system-ui, sans-serif;
+    padding:16px 20px 60px;
+  }
+  a{color:var(--accent); text-decoration:none}
+  a:hover{text-decoration:underline}
+  h1{font-size:2.1em; font-weight:800; margin:.2em 0 .35em}
+  .intro p{margin:.35em 0}
+  .intro .note{color:var(--text)}
+  .updated{color:var(--text); margin:.35em 0 .1em}
+
+  fieldset{
+    border:2px solid var(--panel-border); border-radius:.5em;
+    margin:1.1em 0 .25em; padding:0 .9em .9em;
+  }
+  legend{font-size:x-large; font-weight:700; padding:0 .35em}
+  .hint{color:var(--text); margin:.4em 0 .8em}
+
+  /* filter rows */
+  .rows{display:flex; flex-direction:column; gap:8px}
+  .filter-row{display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+  select{
+    appearance:none; -webkit-appearance:none;
+    background:var(--field-bg)
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23a1a1aa' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>")
+      no-repeat right 8px center;
+    color:var(--text); border:1px solid var(--field-border); border-radius:6px;
+    padding:8px 30px 8px 12px; font:inherit; font-size:.95em; cursor:pointer;
+    min-width:150px; max-width:340px;
+  }
+  select:hover{border-color:var(--field-hover)}
+  select:focus{outline:none; border-color:var(--accent)}
+  select:disabled{opacity:.5; cursor:not-allowed}
+  select.op{min-width:64px; width:64px; text-align:center}
+  select option{background:var(--field-bg); color:var(--text)}
+  .icon-btn{
+    background:none; border:none; color:var(--accent);
+    font-size:1.5em; line-height:1; cursor:pointer; padding:2px 6px;
+    display:inline-flex; align-items:center; justify-content:center;
+    border-radius:6px;
+  }
+  .icon-btn:hover{background:rgba(59,130,246,.12)}
+  .icon-btn:disabled{opacity:.35; cursor:not-allowed; background:none}
+  .icon-btn.remove{color:var(--muted); font-size:1.4em}
+  .icon-btn.remove:hover{color:#f87171; background:rgba(248,113,113,.12)}
+
+  .boff-note{color:var(--muted); font-style:italic; margin-top:.5em; font-size:.9em}
+  /* committed bridge-officer-ability pills */
+  .chip{
+    display:inline-flex; align-items:center; gap:9px;
+    background:rgba(59,130,246,.13); border:1px solid rgba(59,130,246,.45);
+    color:var(--text); border-radius:999px; padding:6px 7px 6px 14px;
+    font-size:.95em; line-height:1.3;
+  }
+  .chip .chip-type{color:var(--accent); font-weight:600}
+  .chip-x{
+    flex:none; cursor:pointer; border:none; padding:0;
+    width:20px; height:20px; border-radius:50%;
+    background:rgba(255,255,255,.09); color:var(--muted);
+    font-size:.95em; line-height:1;
+    display:inline-flex; align-items:center; justify-content:center;
+    transition:background .12s, color .12s;
+  }
+  .chip-x:hover{background:#ef4444; color:#fff}
+
+  /* results table */
+  .table-wrap{overflow-x:auto}
+  table{border-collapse:collapse; width:100%}
+  thead th{
+    background:var(--th-bg); color:var(--text); text-align:left;
+    font-weight:700; padding:12px 14px; white-space:nowrap;
+    cursor:pointer; user-select:none; position:sticky; top:0;
+  }
+  thead th .sort{color:var(--muted); margin-left:6px; font-size:.85em}
+  thead th.active .sort{color:var(--accent)}
+  tbody td{padding:11px 14px; border-top:1px solid var(--row-divider); vertical-align:top}
+  tbody tr:hover{background:var(--row-hover)}
+  td.name a{font-weight:700}
+  td.num{font-variant-numeric:tabular-nums}
+  .empty{padding:24px 14px; color:var(--muted)}
+  .loading-tag{color:var(--muted); font-size:.75em; font-weight:400; font-style:italic}
+</style>
+</head>
+<body>
+<header class="intro">
+  <h1>STO Ship DB</h1>
+  <p>Filter ships by attributes and bridge officer abilities to find your perfect ship in the
+     <a href="https://www.arcgames.com/en/games/star-trek-online" target="_blank" rel="noopener">Star Trek Online</a> game.</p>
+  <p>Initially made by Reddit user <a href="https://www.reddit.com/user/wkrick" target="_blank" rel="noopener">u/wkrick</a>,
+     now rebuilt and maintained by @jalification,
+     using data from the
+     <a href="https://docs.google.com/spreadsheets/d/1SSsxWmE8Oz35D6MvLheFNUfhWerHNkUGOGtjxLlrTuA" target="_blank" rel="noopener">Sortable/Filterable T6 Ship List v2</a>
+     by Reddit user <a href="https://www.reddit.com/user/Fleffle" target="_blank" rel="noopener">u/Fleffle</a>.</p>
+  <p class="note">Note: The total number of ships in this app is higher than the source data because Science Destroyers with Tactical/Science modes are each treated as two distinct ships for more accurate filtering.</p>
+  <p class="updated">Last updated <span id="updated">__BUILD_DATE__</span> <span id="refreshTag"></span></p>
+</header>
+
+<fieldset>
+  <legend>Ship Attributes</legend>
+  <p class="hint">Choose the attributes that you would like your ship to have.</p>
+  <div class="rows" id="attrRows"></div>
+</fieldset>
+
+<fieldset>
+  <legend>Bridge Officer Abilities</legend>
+  <p class="hint">Choose the bridge officer abilities you would like to use on your ship.</p>
+  <div class="rows" id="boffRows"></div>
+</fieldset>
+
+<fieldset>
+  <legend>Additional Result Details</legend>
+  <p class="hint">Choose additional information about each ship to display in the results.</p>
+  <div class="rows" id="detailRows"></div>
+</fieldset>
+
+<fieldset>
+  <legend id="resultsLegend">Ships Matched</legend>
+  <div class="table-wrap">
+    <table>
+      <thead><tr id="headRow"></tr></thead>
+      <tbody id="body"></tbody>
+    </table>
+  </div>
+</fieldset>
+
+<script>
+/* ---------- embedded data ---------- */
+const APPDATA = __APPDATA__;
+const BUILD_DATE = "__BUILD_DATE__";
+
+const SHEET_URL = "https://docs.google.com/spreadsheets/d/1SSsxWmE8Oz35D6MvLheFNUfhWerHNkUGOGtjxLlrTuA/gviz/tq?tqx=out:json&gid=1249626217";
+const CACHE_KEY = "stoshipdb_v2_cache";
+const CACHE_TTL = 24 * 3600 * 1000;   // 24h
+
+const CAT = APPDATA.catalog;                          // [{label, idx, numeric}]
+const CAT_BY_IDX = Object.fromEntries(CAT.map(c => [c.idx, c]));
+
+/* ---------- bridge officer ability catalog ----------
+   Each type maps ability name -> minimum bridge officer rank at which it appears.
+   Seat/ability type codes: 0 Universal, 1 Tac, 2 Eng, 3 Sci,
+                            4 Int, 5 Cmd, 6 Pil, 7 Tmp, 8 MW.  */
+const ABIL = {
+  Engineering:{"Aceton Beam":3,"Auxiliary to Battery":2,"Auxiliary to Dampeners":2,"Auxiliary to Structural":2,"Boarding Party":2,"Deploy Construction Shuttle Wing":1,"Directed Energy Modulation":2,"Eject Warp Plasma":3,"Emergency Power to Auxiliary":1,"Emergency Power to Engines":1,"Emergency Power to Shields":1,"Emergency Power to Weapons":1,"Emit Unstable Warp Bubble":2,"Endothermic Inhibitor Beam":1,"Engineering Team":1,"Extend Shields":2,"Launch Federation Mission Scout Ship":2,"Let It Go":1,"Overload Integrity Field":1,"Reverse Shield Polarity":2,"Structural Integrity Collapse":1},
+  Science:{"Charged Particle Burst":2,"Delayed Overload Cascade":1,"Destabilizing Resonance Beam":2,"Energy Siphon":2,"Feedback Pulse":2,"Gravity Well":3,"Hazard Emitters":1,"Jam Sensors":1,"Mask Energy Signature":1,"Photonic Officer":2,"Photonic Shockwave":3,"Polarize Hull":1,"Science Team":1,"Scramble Sensors":2,"Structural Analysis":1,"Subspace Vortex":1,"Tachyon Beam":1,"Tractor Beam Repulsors":2,"Tractor Beam":1,"Transfer Shield Strength":1,"Tyken's Rift":2,"Very Cold In Space":1,"Viral Matrix":3},
+  Tactical:{"Attack Pattern Beta":2,"Attack Pattern Delta":2,"Attack Pattern Omega":3,"Augment Boarding Party":1,"Beams: Fire at Will":1,"Beams: Overload":1,"Best Served Cold":1,"Cannon: Rapid Fire":2,"Cannon: Scatter Volley":2,"Dispersal Pattern Alpha":2,"Dispersal Pattern Beta":2,"Distributed Targeting":1,"Focused Assault":2,"Kemocite-Laced Weaponry":1,"Tactical Team":1,"Target Auxiliary Subsystems":1,"Target Engines Subsystems":1,"Target Shields Subsystems":1,"Target Weapons Subsystems":1,"Torpedo: High Yield":1,"Torpedo: Spread":1},
+  Command:{"Ambush Point Marker":2,"Call Emergency Artillery":3,"Concentrate Firepower":1,"Needs of the Many":2,"Overwhelm Emitters":1,"Phalanx Formation":3,"Rally Point Marker":2,"Reroute Power from Life Support":1,"Subspace Interception":2,"Suppression Barrage":3},
+  Intelligence:{"Electromagnetic Pulse Probe":2,"Energy Weapons: Surgical Strikes":3,"Evade Target Lock":1,"Intelligence Team":1,"Ionic Turbulence":2,"Kinetic Magnet":2,"Override Subsystem Safeties":1,"Subnucleonic Carrier Wave":3,"Subspace Beacon":1,"Torpedo: Transport Warhead":3,"Viral Impulse Burst":1},
+  "Miracle Worker":{"Align Shield Frequencies":1,"Deploy Gravitic Induction Platform":3,"Destabilize Warp Core":1,"Energy Weapons: Exceed Rated Limits":3,"Mixed Armaments Synergy":2,"Narrow Sensor Bands":1,"Null Pointer Flood":1,"Overwhelm Power Regulators":2,"Reroute Shields to Hull Containment":2,"Torpedoes: Nanite Repair Payload":1},
+  Pilot:{"Attack Pattern Lambda":1,"Clean Getaway":2,"Coolant Ignition":3,"Deploy Countermeasures":1,"Fly Her Apart":2,"Form Up":3,"Hold Together":2,"Lock Trajectory":1,"Pilot Team":1,"Reinforcements Squadron":2,"Reroute Reserves to Weapons":3,"Subspace Boom":3},
+  Temporal:{"Causal Reversion":1,"Channeled Deconstruction":1,"Chronometric Inversion Field":2,"Entropic Cascade":2,"Entropic Redistribution":1,"Gravimetric Conversion":2,"Heisenberg Amplifier":1,"Rapid Decay":2,"Recursive Shearing":3,"Shared Fate":2,"Timeline Collapse":3}
+};
+const BOFF_TYPES = Object.keys(ABIL);
+const TYPE_CODE = { Tactical:1, Engineering:2, Science:3, Intelligence:4, Command:5, Pilot:6, Temporal:7, "Miracle Worker":8 };
+
+function boffLevelOptions(type, name){
+  const min = ABIL[type][name];
+  if(min === 3) return ["I","II/III","Any"];
+  return ["I","II","III","Any"];            // min 1 or 2
+}
+function boffLevelToRank(type, name, level){
+  const u = ABIL[type][name];
+  if(level === "I") return u;
+  if(level === "II" || level === "II/III") return u + 1;
+  if(level === "III") return u + 2;
+  return u === 1 ? 123 : (u === 2 ? 234 : 34);   // "Any"
+}
+
+/* ---------- bridge officer matcher (ported verbatim from the reference worker) ---------- */
+const FF = { UNDEFINED:0, TAC:1, ENG:2, SCI:3, INT:4, CMD:5, PIL:6, TMP:7, MWR:8 };
+const HH = { rank:0, type:1, spec:2 };
+function _cpReq(p){ return p.map(c => ({ rank:c.rank, typeorspec:c.typeorspec })); }
+function _cpSeats(p){ return p.map(x => x.slice()); }
+function _variants(p){
+  const r = [], i = _cpReq(p);
+  i.sort((c,t)=> String(c.rank) > String(t.rank) ? -1 : 1);
+  r.push(i);
+  let n = r.filter(c => !!c.find(t => t.rank > 4));
+  while(n.length > 0){
+    n.forEach(c => {
+      const t = c.findIndex(e => e.rank > 4), o = c[t].rank;
+      c[t].rank = o % 10;
+      const a = _cpReq(c); a[t].rank = Math.trunc(o / 10); r.push(a);
+    });
+    n = r.filter(c => !!c.find(t => t.rank > 4));
+  }
+  return r;
+}
+function _seatVariants(p, r){
+  const i = [], n = _cpSeats(p), c = parseInt(r.join(""), 10);
+  n.filter(o => o[HH.type] === FF.UNDEFINED).forEach(o => o[HH.type] = c);
+  i.push(n);
+  let t = i.filter(o => !!o.find(a => a[HH.type] > 3));
+  while(t.length > 0){
+    t.forEach(o => {
+      const a = o.findIndex(g => g[HH.type] > 3), e = o[a][HH.type];
+      o[a][HH.type] = e % 10;
+      const s = _cpSeats(o); s[a][HH.type] = Math.trunc(e / 10); i.push(s);
+    });
+    t = i.filter(o => !!o.find(a => a[HH.type] > 3));
+  }
+  return i;
+}
+function _bipartite(p, r){
+  const i = [], n = [];
+  for(const t of p) (t.typeorspec > 3 ? i : n).push(t);
+  const c = [];
+  for(const t of r){
+    const o = t[0], a = t[1], e = t[2]; let s = o;
+    for(; s; ){
+      if(e !== FF.UNDEFINED && !i.find(g => g.rank === s && g.typeorspec === e))
+        c.push({ rank:s, type:a, spec:FF.UNDEFINED, matched:false });
+      else
+        c.push({ rank:s, type:a, spec:e, matched:false });
+      s--;
+    }
+  }
+  for(const t of n){
+    const o = t.rank, a = t.typeorspec;
+    let e = c.find(s => !s.matched && s.rank === o && s.type === a && s.spec === FF.UNDEFINED);
+    if(e){ e.matched = true; continue; }
+    e = c.find(s => !s.matched && s.rank === o && s.type === a);
+    if(e){ e.matched = true; continue; }
+    return false;
+  }
+  for(const t of i){
+    const o = t.rank, a = t.typeorspec;
+    const e = c.find(s => !s.matched && s.rank === o && s.spec === a);
+    if(e){ e.matched = true; continue; }
+    return false;
+  }
+  return true;
+}
+/* precompute the query-dependent bits once per set of boff filters */
+function buildBoffQuery(reqs){
+  if(!reqs.length) return null;
+  const careerT = [FF.TAC,FF.ENG,FF.SCI], specT = [FF.INT,FF.CMD,FF.PIL,FF.TMP,FF.MWR];
+  const n = _cpReq(reqs);
+  const c = [...new Set(n.filter(e => specT.includes(e.typeorspec)).map(e => e.typeorspec))];
+  const t = [...new Set(n.filter(e => careerT.includes(e.typeorspec)).map(e => e.typeorspec))];
+  return { reqs, c, t, o:_variants(n) };
+}
+function shipMatchesBoff(seats, q){
+  if(!seats) return false;
+  const { reqs, c, t, o } = q;
+  const specSet = [...new Set(seats.map(l => l[HH.spec]))];
+  if(c.filter(l => !specSet.includes(l)).length > 0) return false;
+  let x = 0; const k = [0,0,0,0,0,0,0,0,0];
+  seats.forEach(l => { const y=l[0],I=l[1],d=l[2]; if(y>k[I])k[I]=y; if(d&&y>k[d])k[d]=y; x+=y; });
+  if(reqs.length > x) return false;
+  const w = k[FF.UNDEFINED];
+  if(w) for(const l of t) if(w > k[l]) k[l] = w;
+  const u = [0,0,0,0,0];
+  for(const l of seats) switch(l[HH.rank]){
+    case 4: u[4]++; u[3]++; u[2]++; u[1]++; break;
+    case 3: u[3]++; u[2]++; u[1]++; break;
+    case 2: u[2]++; u[1]++; break;
+    case 1: u[1]++; break;
+  }
+  const M = _seatVariants(seats, t);
+  for(let l = 0; l < o.length; l++){
+    const y = o[l]; const I = [0,0,0,0,0]; let bad = false;
+    for(let m = 0; !bad && m < y.length; m++){
+      const E = y[m].rank, S = y[m].typeorspec;
+      if(E > k[S]){ bad = true; continue; }
+      bad = (++I[E] > u[E]);
+    }
+    if(bad) continue;
+    for(let m = 0; m < M.length; m++){
+      const E = M[m], S = [0,0,0,0,0,0,0,0,0];
+      for(const b of E){ const N=b[0],D=b[1],U=b[2]; if(N>S[D])S[D]=N; if(N>S[U])S[U]=N; }
+      let infeasible = false;
+      for(let b = 0; !infeasible && b < y.length; b++)
+        if(y[b].rank > S[y[b].typeorspec]) infeasible = true;
+      if(!infeasible && _bipartite(y, E)) return true;
+    }
+  }
+  return false;
+}
+
+/* model column positions used directly by the renderer */
+const IDX_NAME = 1, IDX_WIKI = 59, IDX_SEATS = 64, IDX_SEAT = 65;
+
+let SHIPS = APPDATA.seed.slice();
+let updatedLabel = BUILD_DATE;
+
+/* ---------- UI state ---------- */
+let attrFilters = [];        // [{idx, op, value}]
+let attrDraft = { idx:"", op:"", value:"" };
+let detailCols = [];         // [idx, ...]  (extra result columns)
+let detailDraft = "";
+let boffFilters = [];        // [{typespec, name, level, rank, typeorspec, display}]
+let boffDraft = { typespec:"", name:"", level:"" };
+let sortKey = 2;             // default: Release Date (idx 2) — newest first
+let sortDir = -1;            // 1 asc, -1 desc
+
+/* ---------- helpers ---------- */
+function opsFor(numeric){ return numeric ? ["=","!=",">",">=","<="] : ["=","!=","Contains"]; }
+
+const MONTHS = { Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11 };
+function parseReleaseDate(str){                         // "25 Jul 2024" -> sortable timestamp
+  const m = /^(\d+)\s+([A-Za-z]+)\s+(\d+)$/.exec(String(str||"").trim());
+  if(!m) return 0;
+  return new Date(+m[3], MONTHS[m[2]] ?? 0, +m[1]).getTime();
+}
+
+function distinctValues(idx){
+  const cat = CAT_BY_IDX[idx];
+  const set = new Set();
+  for(const s of SHIPS){ const v = s[idx]; if(v !== "" && v != null) set.add(v); }
+  const arr = [...set];
+  if(cat && cat.type === "date") arr.sort((a,b)=>parseReleaseDate(a)-parseReleaseDate(b));
+  else if(cat && cat.numeric) arr.sort((a,b)=>Number(a)-Number(b));
+  else arr.sort((a,b)=>String(a).localeCompare(String(b)));
+  return arr;
+}
+
+function matches(ship){
+  for(const f of attrFilters){
+    const numeric = CAT_BY_IDX[f.idx] && CAT_BY_IDX[f.idx].numeric;
+    if(numeric){
+      const a = Number(ship[f.idx]), b = Number(f.value);
+      if(f.op==="="  && !(a===b)) return false;
+      if(f.op==="!=" && !(a!==b)) return false;
+      if(f.op===">"  && !(a>b))   return false;
+      if(f.op===">=" && !(a>=b))  return false;
+      if(f.op==="<=" && !(a<=b))  return false;
+    } else {
+      const a = String(ship[f.idx]), b = String(f.value);
+      if(f.op==="="  && a!==b) return false;
+      if(f.op==="!=" && a===b) return false;
+      if(f.op==="Contains" && !a.toLowerCase().includes(b.toLowerCase())) return false;
+    }
+  }
+  return true;
+}
+
+/* build a <select> element */
+function makeSelect(opts, value, placeholder, cls){
+  const s = document.createElement("select");
+  if(cls) s.className = cls;
+  if(placeholder != null){
+    const o = document.createElement("option");
+    o.value = ""; o.textContent = placeholder; o.disabled = true;
+    o.selected = (value === "" || value == null);
+    s.appendChild(o);
+  }
+  for(const opt of opts){
+    const o = document.createElement("option");
+    const val = (typeof opt === "object") ? opt.value : opt;
+    const lab = (typeof opt === "object") ? opt.label : opt;
+    o.value = String(val); o.textContent = lab;
+    if(String(val) === String(value)) o.selected = true;
+    s.appendChild(o);
+  }
+  return s;
+}
+
+/* attribute dropdown options (shared by both panels) */
+function attrOptions(){ return CAT.map(c => ({ value:c.idx, label:c.label })); }
+
+/* ---------- Ship Attributes panel ---------- */
+function renderAttrRows(){
+  const host = document.getElementById("attrRows");
+  host.innerHTML = "";
+
+  attrFilters.forEach((f, i) => {
+    host.appendChild(buildAttrRow(f, i));
+  });
+  host.appendChild(buildAttrRow(attrDraft, null));
+}
+
+function buildAttrRow(f, index){
+  const row = document.createElement("div");
+  row.className = "filter-row";
+  const isDraft = index === null;
+
+  const attrSel = makeSelect(attrOptions(), f.idx, "Select Attribute");
+  const numeric = f.idx !== "" && CAT_BY_IDX[f.idx] && CAT_BY_IDX[f.idx].numeric;
+  const opSel = makeSelect(opsFor(numeric), f.op || (f.idx!=="" ? opsFor(numeric)[0] : ""),
+                           f.idx==="" ? "=" : null, "op");
+  opSel.disabled = f.idx === "";
+  const valOpts = f.idx !== "" ? distinctValues(f.idx) : [];
+  const valSel = makeSelect(valOpts, f.value, "Select Value");
+  valSel.disabled = f.idx === "";
+
+  attrSel.addEventListener("change", () => {
+    const idx = Number(attrSel.value);
+    const num = CAT_BY_IDX[idx] && CAT_BY_IDX[idx].numeric;
+    const target = isDraft ? attrDraft : attrFilters[index];
+    target.idx = idx; target.op = opsFor(num)[0]; target.value = "";
+    if(!isDraft) applyAndRender();
+    renderAttrRows();
+  });
+  opSel.addEventListener("change", () => {
+    const target = isDraft ? attrDraft : attrFilters[index];
+    target.op = opSel.value;
+    if(!isDraft) applyAndRender();
+  });
+  valSel.addEventListener("change", () => {
+    const target = isDraft ? attrDraft : attrFilters[index];
+    target.value = valSel.value;
+    if(!isDraft) applyAndRender();
+  });
+
+  row.appendChild(attrSel); row.appendChild(opSel); row.appendChild(valSel);
+
+  const btn = document.createElement("button");
+  btn.className = "icon-btn" + (isDraft ? "" : " remove");
+  btn.textContent = isDraft ? "+" : "×";
+  btn.title = isDraft ? "Add this filter" : "Remove filter";
+  btn.addEventListener("click", () => {
+    if(isDraft){
+      if(attrDraft.idx === "" || attrDraft.value === "") return;
+      attrFilters.push({ idx:Number(attrDraft.idx), op:attrDraft.op, value:attrDraft.value });
+      attrDraft = { idx:"", op:"", value:"" };
+      applyAndRender(); renderAttrRows();
+    } else {
+      attrFilters.splice(index, 1);
+      applyAndRender(); renderAttrRows();
+    }
+  });
+  row.appendChild(btn);
+  return row;
+}
+
+/* ---------- Additional Result Details panel ---------- */
+function renderDetailRows(){
+  const host = document.getElementById("detailRows");
+  host.innerHTML = "";
+  detailCols.forEach((idx, i) => host.appendChild(buildDetailRow(idx, i)));
+  host.appendChild(buildDetailRow(detailDraft, null));
+}
+
+function buildDetailRow(idx, index){
+  const row = document.createElement("div");
+  row.className = "filter-row";
+  const isDraft = index === null;
+  const sel = makeSelect(attrOptions(), idx, "Select Attribute");
+  sel.addEventListener("change", () => {
+    if(isDraft){ detailDraft = Number(sel.value); }
+    else { detailCols[index] = Number(sel.value); applyAndRender(); }
+  });
+  row.appendChild(sel);
+
+  const btn = document.createElement("button");
+  btn.className = "icon-btn" + (isDraft ? "" : " remove");
+  btn.textContent = isDraft ? "+" : "×";
+  btn.addEventListener("click", () => {
+    if(isDraft){
+      if(detailDraft === "" ) return;
+      if(!detailCols.includes(Number(detailDraft))) detailCols.push(Number(detailDraft));
+      detailDraft = "";
+      applyAndRender(); renderDetailRows();
+    } else {
+      detailCols.splice(index, 1);
+      applyAndRender(); renderDetailRows();
+    }
+  });
+  row.appendChild(btn);
+  return row;
+}
+
+/* ---------- Bridge Officer Abilities panel ---------- */
+function renderBoffRows(){
+  const host = document.getElementById("boffRows");
+  host.innerHTML = "";
+  boffFilters.forEach((f, i) => host.appendChild(buildBoffRow(f, i)));
+  host.appendChild(buildBoffRow(null, null));
+}
+
+function buildBoffRow(f, index){
+  const row = document.createElement("div");
+  row.className = "filter-row";
+
+  if(index !== null){                    // committed ability -> pill
+    const chip = document.createElement("span");
+    chip.className = "chip";
+    const ty = document.createElement("span");
+    ty.className = "chip-type"; ty.textContent = f.typespec;
+    const rest = document.createElement("span");
+    rest.textContent = "· " + f.name + " " + (f.rank > 4 ? "(Any)" : `${f.level} (${f.rank})`);
+    const x = document.createElement("button");
+    x.className = "chip-x"; x.textContent = "×"; x.title = "Remove ability";
+    x.addEventListener("click", () => { boffFilters.splice(index, 1); applyAndRender(); renderBoffRows(); });
+    chip.appendChild(ty); chip.appendChild(rest); chip.appendChild(x);
+    row.appendChild(chip);
+    return row;
+  }
+
+  // draft: Type -> Name -> Level cascade
+  const type = boffDraft.typespec, name = boffDraft.name, level = boffDraft.level;
+  const typeSel = makeSelect(BOFF_TYPES, type, "Select Type");
+  const nameOpts = type ? Object.keys(ABIL[type]).sort() : [];
+  const nameSel = makeSelect(nameOpts, name, "Select Name"); nameSel.disabled = !type;
+  const levelOpts = (type && name) ? boffLevelOptions(type, name) : [];
+  const levelSel = makeSelect(levelOpts, level, "Select Level"); levelSel.disabled = !name;
+
+  typeSel.addEventListener("change", () => { boffDraft.typespec = typeSel.value; boffDraft.name = ""; boffDraft.level = ""; renderBoffRows(); });
+  nameSel.addEventListener("change", () => { boffDraft.name = nameSel.value; boffDraft.level = ""; renderBoffRows(); });
+  levelSel.addEventListener("change", () => { boffDraft.level = levelSel.value; renderBoffRows(); });
+
+  row.appendChild(typeSel); row.appendChild(nameSel); row.appendChild(levelSel);
+
+  const btn = document.createElement("button");
+  btn.className = "icon-btn"; btn.textContent = "+"; btn.title = "Add ability"; btn.disabled = !level;
+  btn.addEventListener("click", () => {
+    if(!type || !name || !level) return;
+    const rank = boffLevelToRank(type, name, level);
+    const typeorspec = TYPE_CODE[type];
+    const display = `${type} - ${name} ` + (rank > 4 ? "(Any)" : `${level} (${rank})`);
+    boffFilters.push({ typespec:type, name, level, rank, typeorspec, display });
+    boffDraft = { typespec:"", name:"", level:"" };
+    applyAndRender(); renderBoffRows();
+  });
+  row.appendChild(btn);
+  return row;
+}
+
+/* ---------- results ---------- */
+function sortValue(ship){
+  if(sortKey === "name") return String(ship[IDX_NAME]).toLowerCase();
+  if(sortKey === "seats") return String(ship[IDX_SEATS]).toLowerCase();
+  const cat = CAT_BY_IDX[sortKey];
+  if(cat && cat.type === "date") return parseReleaseDate(ship[sortKey]);
+  return cat && cat.numeric ? Number(ship[sortKey]) : String(ship[sortKey]).toLowerCase();
+}
+
+function renderTable(){
+  const head = document.getElementById("headRow");
+  const body = document.getElementById("body");
+  head.innerHTML = ""; body.innerHTML = "";
+
+  const columns = [{key:"name", label:"Name"}]
+    .concat(detailCols.map(idx => ({ key:idx, label:CAT_BY_IDX[idx].label, numeric:CAT_BY_IDX[idx].numeric })))
+    .concat([{key:"seats", label:"Seats"}]);
+
+  columns.forEach(col => {
+    const th = document.createElement("th");
+    if(String(col.key) === String(sortKey)) th.classList.add("active");
+    th.textContent = col.label + " ";
+    const s = document.createElement("span");
+    s.className = "sort";
+    s.textContent = String(col.key)===String(sortKey) ? (sortDir===1 ? "▲" : "▼") : "⇅";
+    th.appendChild(s);
+    th.addEventListener("click", () => {
+      if(String(sortKey) === String(col.key)) sortDir *= -1;
+      else { sortKey = col.key; sortDir = 1; }
+      renderTable();
+    });
+    head.appendChild(th);
+  });
+
+  const bq = boffFilters.length
+    ? buildBoffQuery(boffFilters.map(f => ({ rank:f.rank, typeorspec:f.typeorspec })))
+    : null;
+  const matched = SHIPS.filter(s =>
+    matches(s) && (!bq || shipMatchesBoff(s[IDX_SEAT], bq)));
+  matched.sort((a,b) => {
+    const av = sortValueOf(a), bv = sortValueOf(b);
+    if(av < bv) return -1*sortDir;
+    if(av > bv) return  1*sortDir;
+    return 0;
+  });
+
+  document.getElementById("resultsLegend").textContent =
+    `Ships Matched (${matched.length} of ${SHIPS.length})`;
+
+  if(matched.length === 0){
+    const tr = document.createElement("tr");
+    const td = document.createElement("td");
+    td.className = "empty"; td.colSpan = columns.length;
+    td.textContent = "No ships match the selected filters.";
+    tr.appendChild(td); body.appendChild(tr);
+    return;
+  }
+
+  const frag = document.createDocumentFragment();
+  for(const ship of matched){
+    const tr = document.createElement("tr");
+    columns.forEach(col => {
+      const td = document.createElement("td");
+      if(col.key === "name"){
+        td.className = "name";
+        const url = ship[IDX_WIKI];
+        if(url){
+          const a = document.createElement("a");
+          a.href = url; a.target = "_blank"; a.rel = "noopener";
+          a.textContent = ship[IDX_NAME];
+          td.appendChild(a);
+        } else td.textContent = ship[IDX_NAME];
+      } else if(col.key === "seats"){
+        td.textContent = ship[IDX_SEATS];
+      } else {
+        if(col.numeric) td.className = "num";
+        td.textContent = ship[col.key];
+      }
+      tr.appendChild(td);
+    });
+    frag.appendChild(tr);
+  }
+  body.appendChild(frag);
+}
+
+function sortValueOf(ship){ return sortValue(ship); }
+
+function applyAndRender(){ renderTable(); }
+
+/* ---------- data loading + 24h cache ---------- */
+function init(){
+  let usedCache = false;
+  try{
+    const raw = localStorage.getItem(CACHE_KEY);
+    if(raw){
+      const o = JSON.parse(raw);
+      const shapeOk = o && Array.isArray(o.ships) && o.ships.length &&
+                      Array.isArray(o.ships[0]) && o.ships[0].length === APPDATA.seed[0].length;
+      if(shapeOk){
+        SHIPS = o.ships; updatedLabel = o.updated || updatedLabel;
+        if(Date.now() - o.ts < CACHE_TTL) usedCache = true;   // still fresh
+      }
+    }
+  }catch(e){/* ignore corrupt cache */}
+
+  document.getElementById("updated").textContent = updatedLabel;
+  renderAttrRows(); renderBoffRows(); renderDetailRows(); renderTable();
+
+  if(!usedCache) refresh();   // stale or missing -> fetch fresh in background
+}
+
+async function refresh(){
+  const tag = document.getElementById("refreshTag");
+  tag.innerHTML = '<span class="loading-tag">(checking for updates…)</span>';
+  try{
+    const res = await fetch(SHEET_URL);
+    if(!res.ok) throw new Error("HTTP "+res.status);
+    const text = await res.text();
+    const ships = transformSheet(text);
+    if(ships.length){
+      SHIPS = ships;
+      const today = new Date().toISOString().slice(0,10);
+      updatedLabel = today;
+      try{ localStorage.setItem(CACHE_KEY, JSON.stringify({ ts:Date.now(), updated:today, ships })); }catch(e){}
+      document.getElementById("updated").textContent = updatedLabel;
+      renderAttrRows(); renderBoffRows(); renderDetailRows(); renderTable();
+    }
+    tag.innerHTML = "";
+  }catch(e){
+    tag.innerHTML = '<span class="loading-tag">(using saved data)</span>';
+  }
+}
+
+/* ---------- Science Destroyer split (mirrors the build-time snapshot) ----------
+   These ships list both a rank-4 Tac and a rank-4 Sci seat (combined view). Each
+   mode keeps one at rank 4 and demotes the other to rank 3, and toggles a few
+   mode-specific features. */
+const CAREER_NAME2 = {0:"Uni",1:"Tac",2:"Eng",3:"Sci"};
+const SPEC_NAME2 = {0:"",4:"Int",5:"Cmd",6:"Pil",7:"Tmp",8:"MW"};
+const CAREER_PRI = {0:0,1:1,3:2,2:3};   // display order: Uni, Tac, Sci, Eng
+function seatsStringFromData(seats){
+  const order = seats.map((_,i)=>i).sort((a,b)=>{
+    if(seats[a][0]!==seats[b][0]) return seats[b][0]-seats[a][0];        // rank desc
+    const pa = CAREER_PRI[seats[a][1]] ?? 9, pb = CAREER_PRI[seats[b][1]] ?? 9;
+    if(pa!==pb) return pa-pb;
+    const sa = seats[a][2]?0:1, sb = seats[b][2]?0:1;                    // spec present first
+    if(sa!==sb) return sa-sb;
+    return a-b;
+  });
+  return order.map(i=>{
+    const [rank,car,spc] = seats[i];
+    return rank + " " + CAREER_NAME2[car] + (spc ? "/"+SPEC_NAME2[spc] : "");
+  }).join(", ");
+}
+function splitScienceDestroyer(m){
+  const base = m[65];
+  let tacIdx = -1, sciIdx = -1;
+  base.forEach((s,i)=>{
+    if(s[1]===1 && (tacIdx<0 || s[0]>base[tacIdx][0])) tacIdx = i;
+    if(s[1]===3 && (sciIdx<0 || s[0]>base[sciIdx][0])) sciIdx = i;
+  });
+  const results = [];
+  for(const mode of ["Science","Tactical"]){
+    const mm = m.slice();
+    const seats = base.map(s=>s.slice());
+    if(mode==="Science" && tacIdx>=0) seats[tacIdx][0] -= 1;
+    else if(mode==="Tactical" && sciIdx>=0) seats[sciIdx][0] -= 1;
+    mm[1] = m[1] + (mode==="Science" ? " (Science Mode)" : " (Tactical Mode)");
+    mm[65] = seats;
+    const mx = pred => { let r=0; for(const s of seats) if(pred(s) && s[0]>r) r=s[0]; return r; };
+    mm[13]=mx(s=>s[1]===1); mm[14]=mx(s=>s[1]===2); mm[15]=mx(s=>s[1]===3); mm[16]=mx(s=>s[1]===0);
+    mm[17]=mx(s=>s[2]===4); mm[18]=mx(s=>s[2]===5); mm[19]=mx(s=>s[2]===6); mm[20]=mx(s=>s[2]===7); mm[21]=mx(s=>s[2]===8);
+    if(mode==="Science"){ mm[35]="No"; mm[48]="Yes"; mm[49]="Yes"; mm[50]="Yes"; }
+    else { mm[35]="Yes"; mm[48]="No"; mm[49]="No"; mm[50]="No"; }
+    mm[62]=seats.length; mm[63]=seats.reduce((t,s)=>t+s[0],0);
+    mm[64]=seatsStringFromData(seats);
+    results.push(mm);
+  }
+  return results;
+}
+
+/* ---------- sheet -> model transform (mirrors the build-time snapshot) ---------- */
+function transformSheet(text){
+  const s = text.indexOf("{"), e = text.lastIndexOf("}");
+  const json = JSON.parse(text.slice(s, e+1));
+  const rows = json.table.rows || [];
+
+  const cell = c => {
+    if(!c) return "";
+    if(c.f != null) return String(c.f);
+    if(c.v == null) return "";
+    return String(c.v);
+  };
+  const num = x => {
+    x = (x||"").trim();
+    if(x === "") return 0;
+    const f = parseFloat(x);
+    return isNaN(f) ? x : (f === Math.trunc(f) ? Math.trunc(f) : f);
+  };
+  const yn = x => { x = (x||"").trim(); return x ? x : "No"; };
+  const MAST = { WB:"Warbird", Dread:"Dreadnought" };
+  const mast = x => (x||"").split(" ").map(w => MAST[w]||w).join(" ");
+  const slugUrl = u => (u||"").trim();
+
+  const boffGroups = [[47,48,49],[50,51,52],[53,54,55],[56,57,58],[59,60,61],[62,63,64]];
+  const CAREER_CODE = { Uni:0, Tac:1, Eng:2, Sci:3 };
+  const SPEC_CODE = { "":0, Int:4, Cmd:5, Pil:6, Tmp:7, MW:8 };
+  const out = [];
+
+  for(const r of rows){
+    const c = r.c || [];
+    const g = i => cell(c[i]);
+    if((g(98)||"").trim().toUpperCase() !== "TRUE") continue;   // RELEASED only
+
+    const seats = []; let stations = 0, abilities = 0; const seatData = [];
+    for(const [cnt,car,spc] of boffGroups){
+      const n = g(cnt).trim();
+      if(n === "") continue;
+      stations++;
+      const iv = parseInt(n,10); if(!isNaN(iv)) abilities += iv;
+      const career = g(car).trim(), spec = g(spc).trim();
+      seats.push(n + " " + career + (spec ? "/"+spec : ""));
+      seatData.push([iv, CAREER_CODE[career]||0, SPEC_CODE[spec]||0]);
+    }
+    const tcon=num(g(73)), econ=num(g(74)), scon=num(g(75)), ucon=num(g(76));
+    const sum = (...xs) => xs.reduce((t,x)=>{ const v=parseInt(x,10); return t+(isNaN(v)?0:v); },0);
+
+    const m = new Array(66);
+    m[0]=0; m[1]=g(2); m[2]=g(3); m[3]=num(g(4)); m[4]=num(g(5));
+    m[5]=g(6); m[6]=g(7); m[7]=g(8)||"(None)"; m[8]=g(9)||"(None)";
+    m[9]=g(10); m[10]=g(11); m[11]=g(12)||"(None)"; m[12]=mast(g(13));
+    m[13]=num(g(16)); m[14]=num(g(17)); m[15]=num(g(18)); m[16]=num(g(19));
+    m[17]=num(g(20)); m[18]=num(g(21)); m[19]=num(g(22)); m[20]=num(g(23)); m[21]=num(g(24));
+    m[22]=num(g(37)); m[23]=num(g(39)); m[24]=num(g(40)); m[25]=num(g(41)); m[26]=num(g(42));
+    m[27]=num(g(43)); m[28]=num(g(44)); m[29]=num(g(45)); m[30]=num(g(46));
+    m[31]=num(g(65)); m[32]=num(g(66)); m[33]=num(g(67));
+    m[34]=yn(g(68)); m[35]=yn(g(69)); m[36]=num(g(70)); m[37]=num(g(71)); m[38]=yn(g(72));
+    m[39]=tcon; m[40]=econ; m[41]=scon; m[42]=ucon; m[43]=sum(tcon,econ,scon,ucon);
+    m[44]=yn(g(77)); m[45]=yn(g(78)); m[46]=yn(g(79)); m[47]=yn(g(80));
+    m[48]=yn(g(81)); m[49]=yn(g(82)); m[50]=yn(g(83)); m[51]=yn(g(84)); m[52]=yn(g(85));
+    m[53]=yn(g(86)); m[54]=yn(g(87)); m[55]=yn(g(88));
+    m[56]=g(89)||"(None)"; m[57]=g(90)||"(None)"; m[58]=g(91)||"(None)";
+    m[59]=slugUrl(g(113)); m[60]=slugUrl(g(115)); m[61]=slugUrl(g(117));
+    m[62]=stations; m[63]=abilities; m[64]=seats.join(", "); m[65]=seatData;
+    out.push(m);
+  }
+  // split Science Destroyers (Tac/Sci Modes flag at model idx 51) into two entries
+  const expanded = [];
+  for(const m of out){
+    if(m[51]==="Yes") expanded.push(...splitScienceDestroyer(m));
+    else expanded.push(m);
+  }
+  expanded.sort((a,b)=>String(a[1]).toLowerCase().localeCompare(String(b[1]).toLowerCase()));
+  expanded.forEach((m,i)=>m[0]=i);
+  return expanded;
+}
+
+init();
+</script>
+</body>
+</html>

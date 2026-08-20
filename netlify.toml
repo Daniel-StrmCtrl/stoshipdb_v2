@@ -1,0 +1,27 @@
+# Netlify configuration for STO Ship DB — a static single-page app.
+# No build step: the site is one self-contained index.html. (Ship data refreshes
+# client-side from the Google Sheet every 24h, independent of Netlify.)
+
+[build]
+  publish = "."
+  command = ""
+
+# Don't let browsers/CDN hold a stale index.html, so HTML edits go live immediately.
+[[headers]]
+  for = "/"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+# Basic hardening. Remove X-Frame-Options if you ever want to embed the site in an
+# iframe on another domain.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    X-Frame-Options = "SAMEORIGIN"
