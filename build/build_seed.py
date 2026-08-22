@@ -1,8 +1,20 @@
 import json, urllib.request
 
 url = "https://docs.google.com/spreadsheets/d/1SSsxWmE8Oz35D6MvLheFNUfhWerHNkUGOGtjxLlrTuA/gviz/tq?tqx=out:json&gid=1249626217"
-t = urllib.request.urlopen(url).read().decode()
-j = json.loads(t[t.index("{"):t.rindex("}")+1])
+
+# A complete backup of the raw sheet, so the site can be rebuilt even if the
+# Google Sheet ever disappears. Each successful fetch refreshes it; if the sheet
+# is unreachable we transparently fall back to the last saved copy. Git history
+# keeps every past version as a dated archive.
+BACKUP = "sheet_backup.json"
+try:
+    t = urllib.request.urlopen(url, timeout=30).read().decode()
+    j = json.loads(t[t.index("{"):t.rindex("}")+1])
+    json.dump(j, open(BACKUP, "w"), separators=(",", ":"))
+    print("fetched live sheet; refreshed", BACKUP)
+except Exception as e:
+    print("live fetch failed (%s) -> falling back to %s" % (e, BACKUP))
+    j = json.load(open(BACKUP))
 rows = j["table"]["rows"]
 
 def C(c):

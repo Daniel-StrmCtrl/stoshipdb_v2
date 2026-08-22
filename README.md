@@ -82,6 +82,10 @@ python3 build.py        # inject appdata.json into template.html -> ../index.htm
 - `build/build_seed.py` — fetches the sheet and derives the data model + attribute
   catalog into `appdata.json`.
 - `build/build.py` — injects the data and today's date into the template.
+- `build/sheet_backup.json` — a complete backup of the raw sheet, refreshed on every
+  successful `build_seed.py` run. If the Google Sheet ever disappears, `build_seed.py`
+  automatically falls back to this file, so the site can still be rebuilt from the last
+  saved copy. Git history keeps every past version as a dated archive.
 
 ## Notes & limitations
 
