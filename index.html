@@ -132,6 +132,17 @@
   }
   .pivot tfoot th{text-align:left}
 
+  /* ship-type count list — flows into multiple columns on wide screens */
+  .count-head,.count-foot{display:flex; justify-content:space-between; align-items:center; padding:9px 16px; font-size:.95em}
+  .count-head{background:#2f3d5a; color:#fff; font-style:italic; font-weight:600}
+  .count-foot{background:#0c0f16; color:#fff; font-weight:700; border-top:2px solid rgba(255,255,255,.5)}
+  .count-cols{list-style:none; margin:0; padding:0; columns:260px; column-gap:16px}
+  .count-item{display:flex; align-items:center; break-inside:avoid; border-top:1px solid var(--row-divider)}
+  .count-item .ci-name{flex:1; min-width:0; padding:8px 12px; font-weight:600; color:#fff;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .count-item .ci-count{flex:none; width:64px; text-align:right; padding:8px 14px; color:#fff;
+    font-variant-numeric:tabular-nums; font-weight:600}
+
   /* missing-combinations list under each pivot */
   .missing{margin-top:14px}
   .missing-title{color:var(--muted); font-size:.9em; font-weight:600; margin-bottom:8px}
@@ -791,7 +802,8 @@ function buildPivot(hostId, cfg){
   document.getElementById(hostId).innerHTML = h + m;
 }
 
-/* single-dimension count table (e.g. ships per type), heatmap on the count */
+/* single-dimension count list (e.g. ships per type), heatmap on the count.
+   Items flow into as many ~260px columns as the screen width allows. */
 function buildCountTable(hostId, cfg){
   const { label, items } = cfg;          // items: [{name, count}]
   const sorted = items.slice().sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
@@ -799,14 +811,15 @@ function buildCountTable(hostId, cfg){
   const total = sorted.reduce((t, x) => t + x.count, 0);
   const esc = s => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;");
 
-  let h = '<table class="pivot count"><thead>'
-        + `<tr><th class="corner axis-row">${esc(label)}</th><th class="head">Ships</th></tr>`
-        + '</thead><tbody>';
-  sorted.forEach(x => {
-    h += `<tr><th class="rowhead">${esc(x.name)}</th>`
-       + `<td class="cell" style="background:${heatColor(x.count, max)}">${x.count}</td></tr>`;
-  });
-  h += `</tbody><tfoot><tr><th>Grand Total</th><td>${total}</td></tr></tfoot></table>`;
+  const h = '<div class="count">'
+    + `<div class="count-head"><span>${esc(label)}</span><span>Ships</span></div>`
+    + '<ul class="count-cols">'
+    + sorted.map(x =>
+        `<li class="count-item"><span class="ci-name">${esc(x.name)}</span>`
+      + `<span class="ci-count" style="background:${heatColor(x.count, max)}">${x.count}</span></li>`).join("")
+    + '</ul>'
+    + `<div class="count-foot"><span>Grand Total</span><span>${total}</span></div>`
+    + '</div>';
   document.getElementById(hostId).innerHTML = h;
 }
 
