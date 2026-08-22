@@ -227,6 +227,13 @@
     <p class="hint">Same specialization pivot, limited to ships that have a secondary deflector.</p>
     <div class="table-wrap"><div id="pivotSpecsSecDef"></div></div>
   </fieldset>
+
+  <fieldset>
+    <legend>Specializations (4 &amp; 3) — Plain ships only (none of the three)</legend>
+    <p class="hint">Same specialization pivot, limited to ships with no experimental weapon,
+       no hangar bays, and no secondary deflector.</p>
+    <div class="table-wrap"><div id="pivotSpecsPlain"></div></div>
+  </fieldset>
 </section>
 
 <section class="tabpanel" id="tab-about" hidden>
@@ -844,6 +851,8 @@ function renderPivots(){
   buildSpecPivot("pivotSpecsExp",    s => s[35] === "Yes");     // experimental weapon slot
   buildSpecPivot("pivotSpecsHangar", s => s[36] === 1 || s[36] === 2); // 1-2 hangar bays
   buildSpecPivot("pivotSpecsSecDef", s => s[48] === "Yes");     // secondary deflector
+  buildSpecPivot("pivotSpecsPlain",  s =>                       // none of the three
+    s[35] !== "Yes" && s[36] === 0 && s[48] !== "Yes");
 }
 
 function buildSpecPivot(hostId, filter){
