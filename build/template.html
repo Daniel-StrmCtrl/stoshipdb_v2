@@ -198,6 +198,12 @@
   </fieldset>
 
   <fieldset>
+    <legend>Ship Types</legend>
+    <p class="hint">How many ships of each type (cruisers, dreadnoughts, escorts, …).</p>
+    <div class="table-wrap"><div id="pivotTypes"></div></div>
+  </fieldset>
+
+  <fieldset>
     <legend>Specializations — Primary &times; Secondary (4 &amp; 3)</legend>
     <p class="hint">Ships that have exactly one rank-4 and one rank-3 specialization seat,
        counted by their primary (rank&nbsp;4) and secondary (rank&nbsp;3) specialization.</p>
@@ -778,6 +784,25 @@ function buildPivot(hostId, cfg){
   document.getElementById(hostId).innerHTML = h + m;
 }
 
+/* single-dimension count table (e.g. ships per type), heatmap on the count */
+function buildCountTable(hostId, cfg){
+  const { label, items } = cfg;          // items: [{name, count}]
+  const sorted = items.slice().sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+  const max = sorted.reduce((m, x) => Math.max(m, x.count), 0);
+  const total = sorted.reduce((t, x) => t + x.count, 0);
+  const esc = s => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;");
+
+  let h = '<table class="pivot count"><thead>'
+        + `<tr><th class="corner axis-row">${esc(label)}</th><th class="head">Ships</th></tr>`
+        + '</thead><tbody>';
+  sorted.forEach(x => {
+    h += `<tr><th class="rowhead">${esc(x.name)}</th>`
+       + `<td class="cell" style="background:${heatColor(x.count, max)}">${x.count}</td></tr>`;
+  });
+  h += `</tbody><tfoot><tr><th>Grand Total</th><td>${total}</td></tr></tfoot></table>`;
+  document.getElementById(hostId).innerHTML = h;
+}
+
 const SPEC_NAME = { 4:"Int", 5:"Cmd", 6:"Pil", 7:"Tmp", 8:"MW" };
 const SPEC_ORDER = ["Cmd", "Int", "MW", "Pil", "Tmp"];
 /* per-specialization colours — validated for CVD separation and contrast on the
@@ -802,6 +827,14 @@ function renderPivots(){
     rows: [...foreSet].sort(num), cols: [...aftSet].sort(num),
     rowLabel: "Fore", colLabel: "Aft", cornerTop: "Weapons", showMissing: false,
     cell: (f, a) => wCount[f + "|" + a] || 0
+  });
+
+  /* Ship types: count of ships per Mastery Package (idx 12) */
+  const tCount = {};
+  for(const s of SHIPS){ const t = s[12] || "(None)"; tCount[t] = (tCount[t] || 0) + 1; }
+  buildCountTable("pivotTypes", {
+    label: "Ship Type",
+    items: Object.entries(tCount).map(([name, count]) => ({ name, count }))
   });
 
   /* Specializations: ships with exactly one rank-4 spec seat and one rank-3 spec seat.
