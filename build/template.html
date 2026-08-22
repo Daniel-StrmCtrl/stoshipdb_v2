@@ -99,49 +99,141 @@
   td.num{font-variant-numeric:tabular-nums}
   .empty{padding:24px 14px; color:var(--muted)}
   .loading-tag{color:var(--muted); font-size:.75em; font-weight:400; font-style:italic}
+
+  /* tabs */
+  .tabs{display:flex; gap:4px; margin:.4em 0 1em; border-bottom:2px solid var(--field-border)}
+  .tab{
+    background:none; border:none; color:var(--muted); cursor:pointer;
+    font:inherit; font-weight:600; font-size:1.05em; padding:10px 20px;
+    border-bottom:3px solid transparent; margin-bottom:-2px; border-radius:6px 6px 0 0;
+  }
+  .tab:hover{color:var(--text); background:var(--row-hover)}
+  .tab.active{color:var(--text); border-bottom-color:var(--accent)}
+  .tabpanel[hidden]{display:none}
+
+  /* pivot tables */
+  .pivot-grid{display:flex; flex-direction:column; gap:26px}
+  .pivot{border-collapse:collapse; font-variant-numeric:tabular-nums; font-size:.95em}
+  .pivot th,.pivot td{padding:9px 16px; text-align:right; white-space:nowrap}
+  .pivot .corner{
+    background:#12161f; color:var(--muted); font-style:italic; font-weight:600;
+    text-align:left; line-height:1.25;
+  }
+  .pivot .axis{background:#2f3d5a; color:#fff; font-style:italic; font-weight:600; text-align:left}
+  .pivot .axis-row{background:#2f3d5a; color:#fff; font-style:italic; font-weight:600; text-align:left}
+  .pivot thead th.head{background:#34456a; color:#fff; text-align:right; font-weight:600}
+  .pivot tbody th.rowhead{background:#12161f; color:#fff; font-weight:600}
+  .pivot .spec{font-weight:700}
+  .pivot td.cell{color:#fff}
+  .pivot .total{background:#12161f; color:#fff; font-weight:700}
+  .pivot tfoot th,.pivot tfoot td{
+    background:#0c0f16; color:#fff; font-weight:700;
+    border-top:2px solid rgba(255,255,255,.5);
+  }
+  .pivot tfoot th{text-align:left}
+
+  /* missing-combinations list under each pivot */
+  .missing{margin-top:14px}
+  .missing-title{color:var(--muted); font-size:.9em; font-weight:600; margin-bottom:8px}
+  .missing-none{color:#4ade80; font-size:.9em; font-weight:600}
+  .missing-list{list-style:none; padding:0; margin:0; display:flex; flex-wrap:wrap; gap:6px}
+  .missing-list li{
+    display:inline-flex; align-items:center; gap:7px;
+    background:var(--field-bg); border:1px solid var(--field-border);
+    border-radius:6px; padding:4px 11px; font-size:.85em;
+  }
+  .missing-list .mc-x{color:var(--muted)}
+  .missing-list .mc-r,.missing-list .mc-c{color:var(--text)}
 </style>
 </head>
 <body>
 <header class="intro">
   <h1>STO Ship DB</h1>
-  <p>Filter ships by attributes and bridge officer abilities to find your perfect ship in the
-     <a href="https://www.arcgames.com/en/games/star-trek-online" target="_blank" rel="noopener">Star Trek Online</a> game.</p>
-  <p>Initially made by Reddit user <a href="https://www.reddit.com/user/wkrick" target="_blank" rel="noopener">u/wkrick</a>,
-     now rebuilt and maintained by @jalification,
-     using data from the
-     <a href="https://docs.google.com/spreadsheets/d/1SSsxWmE8Oz35D6MvLheFNUfhWerHNkUGOGtjxLlrTuA" target="_blank" rel="noopener">Sortable/Filterable T6 Ship List v2</a>
-     by Reddit user <a href="https://www.reddit.com/user/Fleffle" target="_blank" rel="noopener">u/Fleffle</a>.</p>
-  <p class="note">Note: The total number of ships in this app is higher than the source data because Science Destroyers with Tactical/Science modes are each treated as two distinct ships for more accurate filtering.</p>
-  <p class="updated">Last updated <span id="updated">__BUILD_DATE__</span> <span id="refreshTag"></span></p>
+  <nav class="tabs" id="tabs">
+    <button class="tab active" data-tab="filter">Filter</button>
+    <button class="tab" data-tab="pivot">Pivot</button>
+    <button class="tab" data-tab="about">About</button>
+  </nav>
 </header>
 
-<fieldset>
-  <legend>Ship Attributes</legend>
-  <p class="hint">Choose the attributes that you would like your ship to have.</p>
-  <div class="rows" id="attrRows"></div>
-</fieldset>
+<section class="tabpanel" id="tab-filter">
+  <p>Filter ships by attributes and bridge officer abilities to find your perfect ship in the
+     <a href="https://www.arcgames.com/en/games/star-trek-online" target="_blank" rel="noopener">Star Trek Online</a> game.</p>
+  <p class="updated">Last updated <span id="updated">__BUILD_DATE__</span> <span id="refreshTag"></span></p>
 
-<fieldset>
-  <legend>Bridge Officer Abilities</legend>
-  <p class="hint">Choose the bridge officer abilities you would like to use on your ship.</p>
-  <div class="rows" id="boffRows"></div>
-</fieldset>
+  <fieldset>
+    <legend>Ship Attributes</legend>
+    <p class="hint">Choose the attributes that you would like your ship to have.</p>
+    <div class="rows" id="attrRows"></div>
+  </fieldset>
 
-<fieldset>
-  <legend>Additional Result Details</legend>
-  <p class="hint">Choose additional information about each ship to display in the results.</p>
-  <div class="rows" id="detailRows"></div>
-</fieldset>
+  <fieldset>
+    <legend>Bridge Officer Abilities</legend>
+    <p class="hint">Choose the bridge officer abilities you would like to use on your ship.</p>
+    <div class="rows" id="boffRows"></div>
+  </fieldset>
 
-<fieldset>
-  <legend id="resultsLegend">Ships Matched</legend>
-  <div class="table-wrap">
-    <table>
-      <thead><tr id="headRow"></tr></thead>
-      <tbody id="body"></tbody>
-    </table>
-  </div>
-</fieldset>
+  <fieldset>
+    <legend>Additional Result Details</legend>
+    <p class="hint">Choose additional information about each ship to display in the results.</p>
+    <div class="rows" id="detailRows"></div>
+  </fieldset>
+
+  <fieldset>
+    <legend id="resultsLegend">Ships Matched</legend>
+    <div class="table-wrap">
+      <table>
+        <thead><tr id="headRow"></tr></thead>
+        <tbody id="body"></tbody>
+      </table>
+    </div>
+  </fieldset>
+</section>
+
+<section class="tabpanel" id="tab-pivot" hidden>
+  <fieldset>
+    <legend>Weapons — Fore &times; Aft</legend>
+    <p class="hint">Number of ships by their fore and aft weapon counts.</p>
+    <div class="table-wrap"><div id="pivotWeapons"></div></div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Specializations — Primary &times; Secondary (4 &amp; 3)</legend>
+    <p class="hint">Ships that have exactly one rank-4 and one rank-3 specialization seat,
+       counted by their primary (rank&nbsp;4) and secondary (rank&nbsp;3) specialization.</p>
+    <div class="table-wrap"><div id="pivotSpecs"></div></div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Specializations (4 &amp; 3) — Experimental Weapon ships only</legend>
+    <p class="hint">Same specialization pivot, limited to ships that have an experimental weapon slot.</p>
+    <div class="table-wrap"><div id="pivotSpecsExp"></div></div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Specializations (4 &amp; 3) — Hangar Bay ships only</legend>
+    <p class="hint">Same specialization pivot, limited to ships with 1 or 2 hangar bays.</p>
+    <div class="table-wrap"><div id="pivotSpecsHangar"></div></div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Specializations (4 &amp; 3) — Secondary Deflector ships only</legend>
+    <p class="hint">Same specialization pivot, limited to ships that have a secondary deflector.</p>
+    <div class="table-wrap"><div id="pivotSpecsSecDef"></div></div>
+  </fieldset>
+</section>
+
+<section class="tabpanel" id="tab-about" hidden>
+  <fieldset>
+    <legend>About</legend>
+    <p>Initially made by Reddit user <a href="https://www.reddit.com/user/wkrick" target="_blank" rel="noopener">u/wkrick</a>,
+       now rebuilt and maintained by @jalification,
+       using data from the
+       <a href="https://docs.google.com/spreadsheets/d/1SSsxWmE8Oz35D6MvLheFNUfhWerHNkUGOGtjxLlrTuA" target="_blank" rel="noopener">Sortable/Filterable T6 Ship List v2</a>
+       by Reddit user <a href="https://www.reddit.com/user/Fleffle" target="_blank" rel="noopener">u/Fleffle</a>.</p>
+    <p class="note">Note: The total number of ships in this app is higher than the source data because Science Destroyers with Tactical/Science modes are each treated as two distinct ships for more accurate filtering.</p>
+  </fieldset>
+</section>
 
 <script>
 /* ---------- embedded data ---------- */
@@ -625,6 +717,135 @@ function sortValueOf(ship){ return sortValue(ship); }
 
 function applyAndRender(){ renderTable(); }
 
+/* ---------- pivot tables ---------- */
+/* heatmap colour: interpolate a dark base -> bright green by value/max */
+function heatColor(v, max){
+  if(!v || !max) return "transparent";
+  const t = Math.pow(v / max, 0.6);                 // ease so mid values stay visible
+  const base = [15, 24, 20], hi = [74, 222, 128];   // #0f1814 -> tailwind green-400
+  const mix = i => Math.round(base[i] + (hi[i] - base[i]) * t);
+  return `rgb(${mix(0)},${mix(1)},${mix(2)})`;
+}
+
+/* build a pivot <table> into hostId. cfg: {rows, cols, cell(r,c), rowLabel, colLabel, cornerTop} */
+function buildPivot(hostId, cfg){
+  const { rows, cols, cell, rowLabel, colLabel, cornerTop, showMissing = true } = cfg;
+  const grid = rows.map(r => cols.map(c => cell(r, c)));
+  let max = 0;
+  grid.forEach(gr => gr.forEach(v => { if(v > max) max = v; }));
+  const rowTot = grid.map(gr => gr.reduce((a, b) => a + b, 0));
+  const colTot = cols.map((_, ci) => rows.reduce((a, _r, ri) => a + grid[ri][ci], 0));
+  const grand = rowTot.reduce((a, b) => a + b, 0);
+
+  const esc = s => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;");
+  let h = '<table class="pivot"><thead>';
+  h += `<tr><th class="corner">${esc(cornerTop || "")}</th>`
+     + `<th class="axis" colspan="${cols.length + 1}">${esc(colLabel)}</th></tr>`;
+  h += `<tr><th class="corner axis-row">${esc(rowLabel)}</th>`
+     + cols.map(c => `<th class="head">${specLabel(c)}</th>`).join("")
+     + `<th class="head">Grand Total</th></tr></thead><tbody>`;
+  rows.forEach((r, ri) => {
+    h += `<tr><th class="rowhead">${specLabel(r)}</th>`
+       + cols.map((_, ci) => {
+           const v = grid[ri][ci];
+           return `<td class="cell" style="background:${heatColor(v, max)}">${v || ""}</td>`;
+         }).join("")
+       + `<td class="total">${rowTot[ri]}</td></tr>`;
+  });
+  h += `</tbody><tfoot><tr><th>Grand Total</th>`
+     + colTot.map(t => `<td>${t}</td>`).join("")
+     + `<td>${grand}</td></tr></tfoot></table>`;
+
+  /* dynamic list of combinations still missing (cells with zero ships) */
+  if(!showMissing){ document.getElementById(hostId).innerHTML = h; return; }
+  const missing = [];
+  rows.forEach((r, ri) => cols.forEach((c, ci) => {
+    if(grid[ri][ci] === 0) missing.push({ r, c });
+  }));
+  let m = '<div class="missing">';
+  if(missing.length === 0){
+    m += '<span class="missing-none">✓ Every combination is covered.</span>';
+  } else {
+    m += `<div class="missing-title">Missing combinations — ${missing.length} of ${rows.length * cols.length}</div>`
+       + '<ul class="missing-list">'
+       + missing.map(x =>
+           `<li><span class="mc-r">${esc(rowLabel)} ${specLabel(x.r)}</span>`
+         + `<span class="mc-x">×</span>`
+         + `<span class="mc-c">${esc(colLabel)} ${specLabel(x.c)}</span></li>`).join("")
+       + '</ul>';
+  }
+  m += '</div>';
+  document.getElementById(hostId).innerHTML = h + m;
+}
+
+const SPEC_NAME = { 4:"Int", 5:"Cmd", 6:"Pil", 7:"Tmp", 8:"MW" };
+const SPEC_ORDER = ["Cmd", "Int", "MW", "Pil", "Tmp"];
+/* per-specialization colours — validated for CVD separation and contrast on the
+   pivot's dark/slate header backgrounds (see dataviz palette check). */
+const SPEC_COLOR = { Cmd:"#fb923c", Int:"#c084fc", Pil:"#7dd3fc", Tmp:"#fde047", MW:"#4ade80" };
+function escHtml(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;"); }
+function specLabel(v){
+  const c = SPEC_COLOR[v];
+  return c ? `<span class="spec" style="color:${c}">${escHtml(v)}</span>` : escHtml(v);
+}
+
+function renderPivots(){
+  /* Weapons: Fore (idx 32) x Aft (idx 33) */
+  const foreSet = new Set(), aftSet = new Set(), wCount = {};
+  for(const s of SHIPS){
+    const f = s[32], a = s[33];
+    foreSet.add(f); aftSet.add(a);
+    const k = f + "|" + a; wCount[k] = (wCount[k] || 0) + 1;
+  }
+  const num = (a, b) => a - b;
+  buildPivot("pivotWeapons", {
+    rows: [...foreSet].sort(num), cols: [...aftSet].sort(num),
+    rowLabel: "Fore", colLabel: "Aft", cornerTop: "Weapons", showMissing: false,
+    cell: (f, a) => wCount[f + "|" + a] || 0
+  });
+
+  /* Specializations: ships with exactly one rank-4 spec seat and one rank-3 spec seat.
+     Primary = spec of the rank-4 seat, Secondary = spec of the rank-3 seat.
+     `filter` optionally restricts to a subset of ships. */
+  buildSpecPivot("pivotSpecs");
+  buildSpecPivot("pivotSpecsExp",    s => s[35] === "Yes");     // experimental weapon slot
+  buildSpecPivot("pivotSpecsHangar", s => s[36] === 1 || s[36] === 2); // 1-2 hangar bays
+  buildSpecPivot("pivotSpecsSecDef", s => s[48] === "Yes");     // secondary deflector
+}
+
+function buildSpecPivot(hostId, filter){
+  const sCount = {};
+  for(const s of SHIPS){
+    const seats = s[IDX_SEAT]; if(!seats) continue;
+    if(filter && !filter(s)) continue;
+    const r4 = [], r3 = [];
+    for(const st of seats){
+      const spec = SPEC_NAME[st[2]]; if(!spec) continue;
+      if(st[0] === 4) r4.push(spec); else if(st[0] === 3) r3.push(spec);
+    }
+    if(r4.length === 1 && r3.length === 1){
+      const k = r4[0] + "|" + r3[0]; sCount[k] = (sCount[k] || 0) + 1;
+    }
+  }
+  buildPivot(hostId, {
+    rows: SPEC_ORDER, cols: SPEC_ORDER,
+    rowLabel: "Primary", colLabel: "Secondary", cornerTop: "4,3 Spec",
+    cell: (p, sec) => sCount[p + "|" + sec] || 0
+  });
+}
+
+/* ---------- tabs ---------- */
+function initTabs(){
+  const buttons = document.querySelectorAll("#tabs .tab");
+  buttons.forEach(btn => btn.addEventListener("click", () => {
+    const tab = btn.dataset.tab;
+    buttons.forEach(b => b.classList.toggle("active", b === btn));
+    document.querySelectorAll(".tabpanel").forEach(p =>
+      p.hidden = (p.id !== "tab-" + tab));
+    if(tab === "pivot") renderPivots();
+  }));
+}
+
 /* ---------- data loading + 24h cache ---------- */
 function init(){
   let usedCache = false;
@@ -642,6 +863,7 @@ function init(){
   }catch(e){/* ignore corrupt cache */}
 
   document.getElementById("updated").textContent = updatedLabel;
+  initTabs();
   renderAttrRows(); renderBoffRows(); renderDetailRows(); renderTable();
 
   if(!usedCache) refresh();   // stale or missing -> fetch fresh in background
@@ -662,6 +884,7 @@ async function refresh(){
       try{ localStorage.setItem(CACHE_KEY, JSON.stringify({ ts:Date.now(), updated:today, ships })); }catch(e){}
       document.getElementById("updated").textContent = updatedLabel;
       renderAttrRows(); renderBoffRows(); renderDetailRows(); renderTable();
+      if(!document.getElementById("tab-pivot").hidden) renderPivots();
     }
     tag.innerHTML = "";
   }catch(e){
