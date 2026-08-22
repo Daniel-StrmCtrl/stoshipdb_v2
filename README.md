@@ -10,7 +10,7 @@ Google Sheet, so the site stays current without redeploying.
 > by Reddit user [u/Fleffle](https://www.reddit.com/user/Fleffle).
 
 **Source code:** <https://github.com/Daniel-StrmCtrl/stoshipdb_v2>
-**Live demo:** _add your Netlify URL here_
+**Live demo:** <https://stoshipdb-v2.netlify.app/>
 
 > **Open project.** This is open source — anyone is free to copy, fork, and keep it
 > running. If the current maintainer is ever unable to continue, please feel free to
