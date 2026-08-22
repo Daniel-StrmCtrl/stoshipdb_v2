@@ -111,6 +111,15 @@
   .tab.active{color:var(--text); border-bottom-color:var(--accent)}
   .tabpanel[hidden]{display:none}
 
+  /* about-tab AI heads-up callout */
+  .heads-up{
+    margin-top:1.1em; padding:.2em 1em .9em;
+    border:1px solid rgba(251,146,60,.5); border-left:4px solid #fb923c;
+    border-radius:8px; background:rgba(251,146,60,.08);
+  }
+  .heads-up-title{font-weight:700; color:#fdba74}
+  .heads-up p{margin:.55em 0}
+
   /* pivot tables */
   .pivot-grid{display:flex; flex-direction:column; gap:26px}
   .pivot{border-collapse:collapse; font-variant-numeric:tabular-nums; font-size:.95em}
@@ -260,6 +269,17 @@
        <a href="https://github.com/Daniel-StrmCtrl/stoshipdb_v2" target="_blank" rel="noopener">github.com/Daniel-StrmCtrl/stoshipdb_v2</a>.
        This project is open source — anyone is free to copy, fork, and keep it running.
        If I'm ever unable to maintain it, please feel free to take it over so the community can keep using it.</p>
+
+    <div class="heads-up">
+      <p class="heads-up-title">⚠️ Heads up: built with AI assistance</p>
+      <p>Much of this site — especially the Pivot tab — was "vibecoded": built quickly and
+         iteratively with an AI coding assistant. That made it fast to create, but it also means
+         it hasn't been exhaustively tested, and the numbers rely on the source spreadsheet
+         keeping its exact layout. Edge cases may be wrong.</p>
+      <p>Treat it as a handy fan tool, not a source of truth: enjoy it, but sanity-check anything
+         that matters before you rely on it. Fixes and improvements are welcome on
+         <a href="https://github.com/Daniel-StrmCtrl/stoshipdb_v2" target="_blank" rel="noopener">GitHub</a>.</p>
+    </div>
   </fieldset>
 </section>
 
