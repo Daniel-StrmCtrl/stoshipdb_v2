@@ -9,11 +9,49 @@ Google Sheet, so the site stays current without redeploying.
 > [Sortable/Filterable T6 Ship List v2](https://docs.google.com/spreadsheets/d/1SSsxWmE8Oz35D6MvLheFNUfhWerHNkUGOGtjxLlrTuA)
 > by Reddit user [u/Fleffle](https://www.reddit.com/user/Fleffle).
 
+**Source code:** <https://github.com/Daniel-StrmCtrl/stoshipdb_v2>
 **Live demo:** _add your Netlify URL here_
+
+> **Open project.** This is open source — anyone is free to copy, fork, and keep it
+> running. If the current maintainer is ever unable to continue, please feel free to
+> take it over so the community can keep using it.
 
 ---
 
+## ⚠️ Heads up: this is "vibecoded"
+
+Much of this project — especially the Pivot tab, the tabbed UI, the colour-coding, and
+the backup tooling — was built quickly and iteratively with an AI coding assistant
+("vibe coding"): describe what you want, look at the result, adjust, repeat. That got a
+working, useful tool fast, but it means you should treat the code with appropriate
+caution rather than assume it's production-hardened. Known risks and caveats:
+
+- **Limited testing.** There is no automated test suite. Behaviour was verified by
+  eyeballing the running app and spot-checking numbers against manual calculations, not
+  by exhaustive tests. Edge cases may be wrong.
+- **Data-shape assumptions.** The app depends on the source spreadsheet keeping its
+  current column layout and value conventions. If the sheet's columns are reordered,
+  renamed, or change format, parsing can silently produce wrong results rather than
+  fail loudly.
+- **Derived data may be imperfect.** Seat layouts, the Science-Destroyer split, and the
+  bridge-officer matcher are re-derived in code. They match the reference behaviour as
+  far as it was checked, but subtle cases haven't all been proven correct. Don't treat
+  the numbers as authoritative for anything important without verifying.
+- **Undocumented dependency.** Live data comes from Google Sheets' unofficial `gviz`
+  endpoint, which could change or break without notice (see *Notes & limitations*).
+- **Review before you rely on or extend it.** If you fork this or build on top of it,
+  read the code first, add tests where it matters to you, and validate outputs against a
+  known-good source. Contributions that harden it (tests, validation, error handling)
+  are very welcome.
+
+In short: it's a fan tool made for convenience, not a source of truth. Use it, enjoy it,
+but sanity-check anything that matters.
+
 ## Features
+
+The app is organised into three tabs: **Filter**, **Pivot**, and **About**.
+
+### Filter tab
 
 - **Ship Attributes filter** — filter on any of 50+ attributes (Faction, Hull/Shield
   modifier, seats, consoles, weapons, traits, etc.) with `=`, `≠`, `>`, `≥`, `≤`, or
@@ -30,6 +68,26 @@ Google Sheet, so the site stays current without redeploying.
 - **Science Destroyer modes** — ships with Tactical/Science modes are listed as two
   distinct entries so seat-based filtering is accurate.
 
+### Pivot tab
+
+Heatmap summary tables computed **live** from the same ship data (they refresh when the
+sheet does):
+
+- **Weapons — Fore × Aft** — ship counts by fore vs aft weapon count.
+- **Ship Types** — count of ships per type (Cruiser, Escort, Science Vessel,
+  Dreadnought Cruiser, …), sorted by count, flowing into multiple columns on wide
+  screens.
+- **Specializations — Primary × Secondary (4 & 3)** — ships with exactly one rank-4 and
+  one rank-3 specialization seat, cross-tabulated by primary (rank 4) and secondary
+  (rank 3) spec. Rendered for all ships plus four subsets: **experimental weapon**,
+  **hangar bay**, **secondary deflector**, and **plain ships** (none of those three).
+  Specialization names are colour-coded (Cmd/Int/Pil/Tmp/MW), and each table lists the
+  combinations that currently have **zero ships** ("missing combinations").
+
+### About tab
+
+Credits, the Science-Destroyer counting note, and the source-code link.
+
 ## How it works
 
 Google Sheets exposes a public read endpoint (`gviz`) for any sheet shared as
@@ -43,6 +101,11 @@ Google Sheets exposes a public read endpoint (`gviz`) for any sheet shared as
 So each visitor triggers at most one sheet fetch per day, the UI is instant, and
 editing the spreadsheet updates the site within a day with no redeploy. There is no
 server, no build step to view it, and no API key.
+
+**Resilience layers**, in order: live sheet → 24 h browser cache → embedded snapshot in
+`index.html` → raw `build/sheet_backup.json` (plus full git history). If the live sheet
+is slow or down, visitors still see the embedded snapshot; if the sheet disappears
+entirely, the site can be rebuilt from the saved backup (see *Rebuilding* below).
 
 The sheet is configured near the top of the `<script>` in `index.html` (and in
 `build/template.html`):
