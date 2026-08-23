@@ -333,8 +333,9 @@
 <section class="tabpanel" id="tab-release" hidden>
   <fieldset>
     <legend>Ship Releases Over Time</legend>
-    <p class="hint">How many ships have been released each year, and how many of those are
-       Legendary, Promotional, or Infinity (lockbox) ships.</p>
+    <p class="hint">How many ships have been released each year, broken down by how they're
+       acquired — Infinity (lockbox), Event, Legendary, Fleet, Promotional, and Lobi ships.
+       "Other" is everything else (mostly C-Store).</p>
 
     <div class="rel-controls">
       <div class="rel-control">
@@ -1042,11 +1043,17 @@ function buildSpecPivot(hostId, filter){
 /* Ship acquisition categories. Legendary / Promo / Infinity(=Lockbox) are the
    three highlighted lines; everything else is folded into "Other". */
 const REL_SRC_IDX = { orig: 5, cur: 6 };     // Original Source vs current Source column
+/* Order here is BOTH the stacking order (bottom→top) and the colour order — the
+   colours are consecutive slots of the validated CVD-safe dark palette, so the
+   sequence must stay as-is. "Other" (mostly C-Store) is the grey catch-all. */
 const REL_CATS = [
-  { key: "Legendary",     color: "#c98500", match: v => v === "C Store (Leg)" },
-  { key: "Promotional",   color: "#9085e9", match: v => v === "Promo" },
-  { key: "Infinity",      color: "#3987e5", match: v => v === "Lockbox" },
-  { key: "Other",         color: "#52525b", match: () => true },
+  { key: "Infinity",    color: "#3987e5", match: v => v === "Lockbox" },
+  { key: "Event",       color: "#199e70", match: v => v === "Event" || v === "Event only" },
+  { key: "Legendary",   color: "#c98500", match: v => v === "C Store (Leg)" },
+  { key: "Fleet",       color: "#008300", match: v => v === "Fleet" },
+  { key: "Promotional", color: "#9085e9", match: v => v === "Promo" },
+  { key: "Lobi",        color: "#e66767", match: v => v === "Lobi" },
+  { key: "Other",       color: "#52525b", match: () => true },
 ];
 let relSource = "orig";   // "orig" | "cur"
 let relMode   = "year";   // "year" | "cumul"
@@ -1090,8 +1097,8 @@ function renderRelease(){
   const grand = { ...running };
   const grandTotal = catKeys.reduce((t, k) => t + grand[k], 0);
 
-  /* ---- summary tiles ---- */
-  const tileCats = ["__total__", "Legendary", "Promotional", "Infinity"];
+  /* ---- summary tiles ---- (all ships + every named category; skip "Other") */
+  const tileCats = ["__total__", ...catKeys.filter(k => k !== "Other")];
   const tileHtml = tileCats.map(k => {
     if(k === "__total__"){
       return `<div class="rel-tile"><div class="rt-label">All ships</div>`
