@@ -179,6 +179,64 @@
   }
   .missing-list .mc-x{color:var(--muted)}
   .missing-list .mc-r,.missing-list .mc-c{color:var(--text)}
+
+  /* release tab */
+  .rel-controls{display:flex; flex-wrap:wrap; gap:22px; margin:.2em 0 1.4em}
+  .rel-control{display:flex; flex-direction:column; gap:6px}
+  .rel-control-label{color:var(--muted); font-size:.8em; font-weight:600; text-transform:uppercase; letter-spacing:.04em}
+  .seg{display:inline-flex; border:1px solid var(--field-border); border-radius:8px; overflow:hidden; background:var(--field-bg)}
+  .seg-btn{
+    background:none; border:none; color:var(--muted); cursor:pointer;
+    font:inherit; font-weight:600; font-size:.9em; padding:8px 14px;
+  }
+  .seg-btn + .seg-btn{border-left:1px solid var(--field-border)}
+  .seg-btn:hover{color:var(--text); background:var(--row-hover)}
+  .seg-btn.active{color:#fff; background:var(--accent)}
+
+  .rel-tiles{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-bottom:22px}
+  .rel-tile{border:1px solid var(--field-border); border-radius:10px; padding:14px 16px; background:var(--field-bg)}
+  .rel-tile .rt-label{display:flex; align-items:center; gap:8px; color:var(--muted); font-size:.85em; font-weight:600}
+  .rel-tile .rt-swatch{width:11px; height:11px; border-radius:3px; flex:none}
+  .rel-tile .rt-value{font-size:1.9em; font-weight:700; font-variant-numeric:tabular-nums; margin-top:4px}
+  .rel-tile .rt-sub{color:var(--muted); font-size:.8em; margin-top:2px}
+
+  .rel-legend{display:flex; flex-wrap:wrap; gap:16px; margin-bottom:10px}
+  .rel-legend .lg-item{display:flex; align-items:center; gap:7px; color:var(--text); font-size:.88em; font-weight:600}
+  .rel-legend .lg-swatch{width:13px; height:13px; border-radius:3px; flex:none}
+
+  .rel-chart{width:100%; overflow-x:auto}
+  .rel-chart svg{display:block; width:100%; height:auto; min-width:520px}
+  .rel-chart .grid-line{stroke:var(--row-divider); stroke-width:1}
+  .rel-chart .axis-label{fill:var(--muted); font-size:11px}
+  .rel-chart .bar-total{fill:var(--text); font-size:11px; font-weight:700}
+  .rel-chart .seg-rect{cursor:pointer}
+  .rel-chart .seg-rect:hover{opacity:.85}
+
+  .rel-tip{
+    position:fixed; z-index:50; pointer-events:none; max-width:240px;
+    background:#000; border:1px solid var(--field-border); border-radius:8px;
+    padding:9px 11px; font-size:.85em; box-shadow:0 6px 20px rgba(0,0,0,.5);
+  }
+  .rel-tip .tip-year{font-weight:700; margin-bottom:5px}
+  .rel-tip .tip-row{display:flex; align-items:center; gap:7px; margin:2px 0}
+  .rel-tip .tip-sw{width:10px; height:10px; border-radius:2px; flex:none}
+  .rel-tip .tip-name{flex:1; color:var(--muted)}
+  .rel-tip .tip-val{font-variant-numeric:tabular-nums; font-weight:600}
+  .rel-tip .tip-tot{border-top:1px solid var(--field-border); margin-top:5px; padding-top:5px; font-weight:700}
+
+  .rel-table-el{border-collapse:collapse; width:100%; font-variant-numeric:tabular-nums; font-size:.92em; margin-top:24px}
+  .rel-table-el th,.rel-table-el td{padding:9px 14px; text-align:right; white-space:nowrap}
+  .rel-table-el thead th{background:var(--th-bg); color:var(--text); border-bottom:2px solid var(--field-border)}
+  .rel-table-el thead th:first-child,.rel-table-el tbody th{text-align:left}
+  .rel-table-el tbody th{color:var(--text); font-weight:600}
+  .rel-table-el tbody tr{border-top:1px solid var(--row-divider)}
+  .rel-table-el tbody tr:hover{background:var(--row-hover)}
+  .rel-table-el .rt-cat{display:inline-flex; align-items:center; gap:6px}
+  .rel-table-el tfoot th,.rel-table-el tfoot td{
+    background:var(--th-bg); color:var(--text); font-weight:700;
+    border-top:2px solid var(--field-border);
+  }
+  .rel-table-el tfoot th{text-align:left}
 </style>
 </head>
 <body>
@@ -187,6 +245,7 @@
   <nav class="tabs" id="tabs">
     <button class="tab active" data-tab="filter">Filter</button>
     <button class="tab" data-tab="pivot">Pivot</button>
+    <button class="tab" data-tab="release">Release</button>
     <button class="tab" data-tab="about">About</button>
   </nav>
 </header>
@@ -268,6 +327,40 @@
     <p class="hint">Same specialization pivot, limited to ships with no experimental weapon,
        no hangar bays, and no secondary deflector.</p>
     <div class="table-wrap"><div id="pivotSpecsPlain"></div></div>
+  </fieldset>
+</section>
+
+<section class="tabpanel" id="tab-release" hidden>
+  <fieldset>
+    <legend>Ship Releases Over Time</legend>
+    <p class="hint">How many ships have been released each year, broken down by how they're
+       acquired — Infinity (lockbox), Event, Legendary, Fleet, Promotional, and Lobi ships.
+       "Other" is everything else (mostly C-Store).</p>
+
+    <div class="rel-controls">
+      <div class="rel-control">
+        <span class="rel-control-label">Source</span>
+        <div class="seg" id="relSourceSeg">
+          <button class="seg-btn active" data-src="orig">Original release</button>
+          <button class="seg-btn" data-src="cur">Current availability</button>
+        </div>
+      </div>
+      <div class="rel-control">
+        <span class="rel-control-label">View</span>
+        <div class="seg" id="relModeSeg">
+          <button class="seg-btn active" data-mode="year">Per year</button>
+          <button class="seg-btn" data-mode="cumul">Cumulative</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="rel-tiles" id="relTiles"></div>
+
+    <div class="rel-legend" id="relLegend"></div>
+    <div class="rel-chart" id="relChart"></div>
+    <div class="rel-tip" id="relTip" hidden></div>
+
+    <div class="table-wrap"><div id="relTable"></div></div>
   </fieldset>
 </section>
 
@@ -946,6 +1039,203 @@ function buildSpecPivot(hostId, filter){
   });
 }
 
+/* ---------- release tab ---------- */
+/* Ship acquisition categories. Legendary / Promo / Infinity(=Lockbox) are the
+   three highlighted lines; everything else is folded into "Other". */
+const REL_SRC_IDX = { orig: 5, cur: 6 };     // Original Source vs current Source column
+/* Order here is BOTH the stacking order (bottom→top) and the colour order — the
+   colours are consecutive slots of the validated CVD-safe dark palette, so the
+   sequence must stay as-is. "Other" (mostly C-Store) is the grey catch-all. */
+const REL_CATS = [
+  { key: "Infinity",    color: "#3987e5", match: v => v === "Lockbox" },
+  { key: "Event",       color: "#199e70", match: v => v === "Event" || v === "Event only" },
+  { key: "Legendary",   color: "#c98500", match: v => v === "C Store (Leg)" },
+  { key: "Fleet",       color: "#008300", match: v => v === "Fleet" },
+  { key: "Promotional", color: "#9085e9", match: v => v === "Promo" },
+  { key: "Lobi",        color: "#e66767", match: v => v === "Lobi" },
+  { key: "Other",       color: "#52525b", match: () => true },
+];
+let relSource = "orig";   // "orig" | "cur"
+let relMode   = "year";   // "year" | "cumul"
+
+function relCategory(srcVal){
+  for(const c of REL_CATS) if(c.match(srcVal)) return c.key;
+  return "Other";
+}
+
+/* aggregate ships into { years:[...], perYear:{year:{cat:count}} } */
+function relAggregate(){
+  const idx = REL_SRC_IDX[relSource];
+  const perYear = {};
+  let minY = Infinity, maxY = -Infinity;
+  for(const s of SHIPS){
+    let y = Number(s[3]);                                  // Year column
+    if(!y){ y = new Date(parseReleaseDate(s[2])).getFullYear(); }
+    if(!y || !isFinite(y)) continue;
+    minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+    const cat = relCategory(s[idx]);
+    (perYear[y] = perYear[y] || {})[cat] = (perYear[y][cat] || 0) + 1;
+  }
+  const years = [];
+  if(isFinite(minY)) for(let y = minY; y <= maxY; y++) years.push(y);
+  return { years, perYear };
+}
+
+function renderRelease(){
+  const { years, perYear } = relAggregate();
+  const catKeys = REL_CATS.map(c => c.key);
+  const colorOf = Object.fromEntries(REL_CATS.map(c => [c.key, c.color]));
+
+  /* running totals (used both for the "cumulative" view and the summary tiles) */
+  const running = Object.fromEntries(catKeys.map(k => [k, 0]));
+  const stacks = years.map(y => {
+    const yc = perYear[y] || {};
+    const rowRaw = {}, rowCumul = {};
+    for(const k of catKeys){ rowRaw[k] = yc[k] || 0; running[k] += rowRaw[k]; rowCumul[k] = running[k]; }
+    return { year: y, raw: rowRaw, cumul: { ...rowCumul } };
+  });
+  const grand = { ...running };
+  const grandTotal = catKeys.reduce((t, k) => t + grand[k], 0);
+
+  /* ---- summary tiles ---- (all ships + every named category; skip "Other") */
+  const tileCats = ["__total__", ...catKeys.filter(k => k !== "Other")];
+  const tileHtml = tileCats.map(k => {
+    if(k === "__total__"){
+      return `<div class="rel-tile"><div class="rt-label">All ships</div>`
+           + `<div class="rt-value">${grandTotal}</div>`
+           + `<div class="rt-sub">${years.length ? years[0] + "–" + years[years.length-1] : ""}</div></div>`;
+    }
+    const n = grand[k], pct = grandTotal ? Math.round(n / grandTotal * 100) : 0;
+    return `<div class="rel-tile"><div class="rt-label">`
+         + `<span class="rt-swatch" style="background:${colorOf[k]}"></span>${k}</div>`
+         + `<div class="rt-value">${n}</div><div class="rt-sub">${pct}% of all ships</div></div>`;
+  }).join("");
+  document.getElementById("relTiles").innerHTML = tileHtml;
+
+  /* ---- legend ---- */
+  document.getElementById("relLegend").innerHTML = catKeys.map(k =>
+    `<span class="lg-item"><span class="lg-swatch" style="background:${colorOf[k]}"></span>${k}</span>`
+  ).join("");
+
+  /* ---- stacked bar chart (inline SVG) ---- */
+  const useCumul = relMode === "cumul";
+  const maxVal = stacks.reduce((m, s) => {
+    const t = catKeys.reduce((a, k) => a + (useCumul ? s.cumul[k] : s.raw[k]), 0);
+    return Math.max(m, t);
+  }, 0) || 1;
+
+  const W = Math.max(560, years.length * 46 + 60);
+  const H = 340, mL = 44, mR = 12, mT = 16, mB = 34;
+  const plotW = W - mL - mR, plotH = H - mT - mB;
+  const bw = years.length ? Math.min(38, plotW / years.length * 0.62) : 20;
+  const step = years.length ? plotW / years.length : plotW;
+  const yScale = v => plotH - (v / maxVal) * plotH;
+
+  /* recessive gridlines + y labels at ~5 ticks */
+  const ticks = 5; let svg = "";
+  for(let i = 0; i <= ticks; i++){
+    const val = Math.round(maxVal / ticks * i);
+    const y = mT + yScale(val);
+    svg += `<line class="grid-line" x1="${mL}" y1="${y.toFixed(1)}" x2="${W-mR}" y2="${y.toFixed(1)}"/>`;
+    svg += `<text class="axis-label" x="${mL-8}" y="${(y+4).toFixed(1)}" text-anchor="end">${val}</text>`;
+  }
+
+  const GAP = 2;   // surface gap between stacked segments
+  stacks.forEach((s, i) => {
+    const cx = mL + step * i + step / 2;
+    const x = cx - bw / 2;
+    let acc = 0;
+    const vals = catKeys.map(k => (useCumul ? s.cumul[k] : s.raw[k]));
+    const total = vals.reduce((a, b) => a + b, 0);
+    const tipData = catKeys.map((k, ci) => ({ k, v: vals[ci], c: colorOf[k] }))
+                           .filter(d => d.v > 0);
+    catKeys.forEach((k, ci) => {
+      const v = vals[ci]; if(v <= 0) return;
+      const y0 = yScale(acc), y1 = yScale(acc + v);
+      acc += v;
+      const h = Math.max(0, (y0 - y1) - GAP);
+      const yTop = mT + y1;
+      const rx = h > 3 ? 2 : 0;
+      svg += `<rect class="seg-rect" x="${x.toFixed(1)}" y="${yTop.toFixed(1)}" `
+           + `width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="${rx}" fill="${colorOf[k]}" `
+           + `data-year="${s.year}"></rect>`;
+    });
+    /* store tooltip payload on an invisible full-height hit rect */
+    const payload = encodeURIComponent(JSON.stringify({ year: s.year, rows: tipData, total }));
+    svg += `<rect class="seg-rect" x="${x.toFixed(1)}" y="${mT}" width="${bw.toFixed(1)}" `
+         + `height="${plotH}" fill="transparent" data-tip="${payload}"></rect>`;
+    if(total > 0)
+      svg += `<text class="bar-total" x="${cx.toFixed(1)}" y="${(mT + yScale(total) - 5).toFixed(1)}" `
+           + `text-anchor="middle">${total}</text>`;
+    /* year label — thin out if crowded */
+    const label = (years.length > 18 && i % 2 === 1) ? "" : s.year;
+    if(label !== "")
+      svg += `<text class="axis-label" x="${cx.toFixed(1)}" y="${H-12}" text-anchor="middle">${label}</text>`;
+  });
+
+  document.getElementById("relChart").innerHTML =
+    `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Ship releases per year by category">${svg}</svg>`;
+  wireRelTips();
+
+  /* ---- data table ---- */
+  const cell = (n) => `<td>${n || ""}</td>`;
+  let t = '<table class="rel-table-el"><thead><tr><th>Year</th>'
+        + catKeys.map(k =>
+            `<th><span class="rt-cat"><span class="rt-swatch" style="background:${colorOf[k]}"></span>${k}</span></th>`
+          ).join("")
+        + '<th>Total</th></tr></thead><tbody>';
+  stacks.forEach(s => {
+    const vals = catKeys.map(k => (useCumul ? s.cumul[k] : s.raw[k]));
+    const total = vals.reduce((a, b) => a + b, 0);
+    t += `<tr><th>${s.year}</th>` + vals.map(cell).join("") + `<td>${total || ""}</td></tr>`;
+  });
+  t += '</tbody><tfoot><tr><th>Total</th>'
+     + catKeys.map(k => `<td>${grand[k]}</td>`).join("")
+     + `<td>${grandTotal}</td></tr></tfoot></table>`;
+  document.getElementById("relTable").innerHTML = t;
+}
+
+function wireRelTips(){
+  const tip = document.getElementById("relTip");
+  const host = document.getElementById("relChart");
+  host.querySelectorAll("rect[data-tip]").forEach(r => {
+    r.addEventListener("mousemove", e => {
+      const d = JSON.parse(decodeURIComponent(r.dataset.tip));
+      tip.innerHTML = `<div class="tip-year">${d.year}</div>`
+        + d.rows.slice().reverse().map(row =>
+            `<div class="tip-row"><span class="tip-sw" style="background:${row.c}"></span>`
+          + `<span class="tip-name">${row.k}</span><span class="tip-val">${row.v}</span></div>`).join("")
+        + `<div class="tip-row tip-tot"><span class="tip-name">Total</span>`
+        + `<span class="tip-val">${d.total}</span></div>`;
+      tip.hidden = false;
+      const pad = 14, tw = tip.offsetWidth, th = tip.offsetHeight;
+      let x = e.clientX + pad, y = e.clientY + pad;
+      if(x + tw > window.innerWidth)  x = e.clientX - tw - pad;
+      if(y + th > window.innerHeight) y = e.clientY - th - pad;
+      tip.style.left = x + "px"; tip.style.top = y + "px";
+    });
+    r.addEventListener("mouseleave", () => { tip.hidden = true; });
+  });
+}
+
+function initRelease(){
+  /* a lingering tooltip on scroll looks stale — dismiss it */
+  const tip = document.getElementById("relTip");
+  window.addEventListener("scroll", () => { tip.hidden = true; }, { passive: true });
+  document.querySelectorAll("#relSourceSeg .seg-btn").forEach(b =>
+    b.addEventListener("click", () => {
+      relSource = b.dataset.src;
+      document.querySelectorAll("#relSourceSeg .seg-btn").forEach(x => x.classList.toggle("active", x === b));
+      renderRelease();
+    }));
+  document.querySelectorAll("#relModeSeg .seg-btn").forEach(b =>
+    b.addEventListener("click", () => {
+      relMode = b.dataset.mode;
+      document.querySelectorAll("#relModeSeg .seg-btn").forEach(x => x.classList.toggle("active", x === b));
+      renderRelease();
+    }));
+}
+
 /* ---------- tabs ---------- */
 function initTabs(){
   const buttons = document.querySelectorAll("#tabs .tab");
@@ -955,6 +1245,7 @@ function initTabs(){
     document.querySelectorAll(".tabpanel").forEach(p =>
       p.hidden = (p.id !== "tab-" + tab));
     if(tab === "pivot") renderPivots();
+    if(tab === "release") renderRelease();
   }));
 }
 
@@ -976,6 +1267,7 @@ function init(){
 
   document.getElementById("updated").textContent = updatedLabel;
   initTabs();
+  initRelease();
   renderAttrRows(); renderBoffRows(); renderDetailRows(); renderTable();
 
   if(!usedCache) refresh();   // stale or missing -> fetch fresh in background
@@ -997,6 +1289,7 @@ async function refresh(){
       document.getElementById("updated").textContent = updatedLabel;
       renderAttrRows(); renderBoffRows(); renderDetailRows(); renderTable();
       if(!document.getElementById("tab-pivot").hidden) renderPivots();
+      if(!document.getElementById("tab-release").hidden) renderRelease();
     }
     tag.innerHTML = "";
   }catch(e){
