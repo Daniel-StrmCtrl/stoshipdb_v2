@@ -111,6 +111,21 @@
   .tab.active{color:var(--text); border-bottom-color:var(--accent)}
   .tabpanel[hidden]{display:none}
 
+  /* about-tab credits list */
+  #tab-about h3{font-size:1em; margin:1.4em 0 .2em; color:var(--text)}
+  .credits{list-style:none; margin:1em 0; padding:0; display:flex; flex-direction:column; gap:2px}
+  .credits li{
+    display:flex; gap:14px; align-items:baseline;
+    padding:10px 0; border-top:1px solid var(--row-divider);
+  }
+  .credits li:first-child{border-top:none}
+  .credits .role{flex:none; width:170px; color:var(--muted); font-weight:600; font-size:.9em}
+  .credits .who{flex:1; min-width:0}
+  @media (max-width:520px){
+    .credits li{flex-direction:column; gap:2px}
+    .credits .role{width:auto}
+  }
+
   /* about-tab AI heads-up callout */
   .heads-up{
     margin-top:1.1em; padding:.2em 1em .9em;
@@ -259,12 +274,30 @@
 <section class="tabpanel" id="tab-about" hidden>
   <fieldset>
     <legend>About</legend>
-    <p>Initially made by Reddit user <a href="https://www.reddit.com/user/wkrick" target="_blank" rel="noopener">u/wkrick</a>,
-       now rebuilt and maintained by @jalification,
-       using data from the
-       <a href="https://docs.google.com/spreadsheets/d/1SSsxWmE8Oz35D6MvLheFNUfhWerHNkUGOGtjxLlrTuA" target="_blank" rel="noopener">Sortable/Filterable T6 Ship List v2</a>
-       by Reddit user <a href="https://www.reddit.com/user/Fleffle" target="_blank" rel="noopener">u/Fleffle</a>.</p>
+    <p>A fast, filterable database of Star Trek Online ships — built by and for the community.</p>
+
+    <h3>Who's responsible for what</h3>
+    <ul class="credits">
+      <li>
+        <span class="role">Original app</span>
+        <span class="who">Reddit user <a href="https://www.reddit.com/user/wkrick" target="_blank" rel="noopener">u/wkrick</a></span>
+      </li>
+      <li>
+        <span class="role">Rebuild &amp; maintenance</span>
+        <span class="who">@jalification</span>
+      </li>
+      <li>
+        <span class="role">Ship data</span>
+        <span class="who"><a href="https://docs.google.com/spreadsheets/d/1SSsxWmE8Oz35D6MvLheFNUfhWerHNkUGOGtjxLlrTuA" target="_blank" rel="noopener">Sortable/Filterable T6 Ship List v2</a> by Reddit user <a href="https://www.reddit.com/user/Fleffle" target="_blank" rel="noopener">u/Fleffle</a></span>
+      </li>
+      <li>
+        <span class="role">Pivot tables</span>
+        <span class="who">Inspired by <strong>kodiak_it</strong> (Discord)</span>
+      </li>
+    </ul>
+
     <p class="note">Note: The total number of ships in this app is higher than the source data because Science Destroyers with Tactical/Science modes are each treated as two distinct ships for more accurate filtering.</p>
+
     <p>Source code:
        <a href="https://github.com/Daniel-StrmCtrl/stoshipdb_v2" target="_blank" rel="noopener">github.com/Daniel-StrmCtrl/stoshipdb_v2</a>.
        This project is open source — anyone is free to copy, fork, and keep it running.
@@ -272,10 +305,10 @@
 
     <div class="heads-up">
       <p class="heads-up-title">⚠️ Heads up: built with AI assistance</p>
-      <p>Much of this site — especially the Pivot tab — was "vibecoded": built quickly and
-         iteratively with an AI coding assistant. That made it fast to create, but it also means
-         it hasn't been exhaustively tested, and the numbers rely on the source spreadsheet
-         keeping its exact layout. Edge cases may be wrong.</p>
+      <p>This entire site was "vibecoded": built quickly and iteratively with an AI coding
+         assistant. That made it fast to create, but it also means it hasn't been exhaustively
+         tested, and the numbers rely on the source spreadsheet keeping its exact layout.
+         Edge cases may be wrong.</p>
       <p>Treat it as a handy fan tool, not a source of truth: enjoy it, but sanity-check anything
          that matters before you rely on it. Fixes and improvements are welcome on
          <a href="https://github.com/Daniel-StrmCtrl/stoshipdb_v2" target="_blank" rel="noopener">GitHub</a>.</p>

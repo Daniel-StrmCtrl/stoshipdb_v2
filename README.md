@@ -20,8 +20,7 @@ Google Sheet, so the site stays current without redeploying.
 
 ## ⚠️ Heads up: this is "vibecoded"
 
-Much of this project — especially the Pivot tab, the tabbed UI, the colour-coding, and
-the backup tooling — was built quickly and iteratively with an AI coding assistant
+This entire project was built quickly and iteratively with an AI coding assistant
 ("vibe coding"): describe what you want, look at the result, adjust, repeat. That got a
 working, useful tool fast, but it means you should treat the code with appropriate
 caution rather than assume it's production-hardened. Known risks and caveats:
