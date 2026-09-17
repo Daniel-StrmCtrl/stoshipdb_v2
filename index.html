@@ -126,6 +126,14 @@
     .credits .role{width:auto}
   }
 
+  /* about-tab release notes */
+  .releases{list-style:none; margin:1em 0; padding:0; display:flex; flex-direction:column; gap:18px}
+  .release .rel-ver{display:flex; align-items:baseline; gap:10px; flex-wrap:wrap}
+  .release .rel-num{font-weight:700; font-size:1.05em; color:var(--text)}
+  .release .rel-tagline{color:var(--muted); font-size:.85em}
+  .release ul{margin:.45em 0 0; padding-left:1.2em; display:flex; flex-direction:column; gap:4px}
+  .release ul li{color:var(--text)}
+
   /* about-tab AI heads-up callout */
   .heads-up{
     margin-top:1.1em; padding:.2em 1em .9em;
@@ -390,6 +398,25 @@
     </ul>
 
     <p class="note">Note: The total number of ships in this app is higher than the source data because Science Destroyers with Tactical/Science modes are each treated as two distinct ships for more accurate filtering.</p>
+
+    <h3>Release notes</h3>
+    <ul class="releases">
+      <li class="release">
+        <div class="rel-ver"><span class="rel-num">v1.0.1</span><span class="rel-tagline">17 Sep 2026</span></div>
+        <ul>
+          <li>Added a <strong>60th Icons Tier</strong> filter (Admiral, Captain, Commander, Lieutenant, Fleet Adm).</li>
+          <li>Added a <strong>60th Ship</strong> Yes/No filter to list all 60th-anniversary ships at once.</li>
+          <li>Realigned columns after a new column was added to the source sheet, so all attributes read correctly again.</li>
+        </ul>
+      </li>
+      <li class="release">
+        <div class="rel-ver"><span class="rel-num">v1.0.0</span><span class="rel-tagline">Initial release</span></div>
+        <ul>
+          <li>First public release: Filter, Pivot, Release, and About tabs.</li>
+          <li>Filter ships by attributes and bridge officer abilities, with live data from the source spreadsheet.</li>
+        </ul>
+      </li>
+    </ul>
 
     <p>Source code:
        <a href="https://github.com/Daniel-StrmCtrl/stoshipdb_v2" target="_blank" rel="noopener">github.com/Daniel-StrmCtrl/stoshipdb_v2</a>.
