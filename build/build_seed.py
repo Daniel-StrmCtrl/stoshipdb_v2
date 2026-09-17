@@ -42,7 +42,7 @@ SPEC_CODE={"":0,"Int":4,"Cmd":5,"Pil":6,"Tmp":7,"MW":8}
 def transform(r):
     v=[C(c) for c in r["c"]]
     def g(i): return v[i] if i<len(v) else ""
-    boff=[(47,48,49),(50,51,52),(53,54,55),(56,57,58),(59,60,61),(62,63,64)]
+    boff=[(48,49,50),(51,52,53),(54,55,56),(57,58,59),(60,61,62),(63,64,65)]
     seats=[]; stations=0; abil=0; seatData=[]
     for cnt,car,spc in boff:
         c=g(cnt).strip()
@@ -52,30 +52,35 @@ def transform(r):
         except: pass
         seats.append(f"{c} {career}"+(f"/{spec}" if spec else ""))
         seatData.append([int(float(c)), CAREER_CODE.get(career,0), SPEC_CODE.get(spec,0)])
-    tcon,econ,scon,ucon=num(g(73)),num(g(74)),num(g(75)),num(g(76))
+    tcon,econ,scon,ucon=num(g(74)),num(g(75)),num(g(76)),num(g(77))
     def n(*xs):
         tot=0
         for x in xs:
             try: tot+=int(float(x))
             except: pass
         return tot
-    m=[None]*66
+    # NOTE: a "60th Icons Tier" column was inserted at spreadsheet column J
+    # (index 9), shifting every column from J onward right by one. All raw
+    # column indices at/after 9 are therefore +1 vs. the original layout.
+    m=[None]*68
     m[0]=0; m[1]=g(2); m[2]=g(3); m[3]=num(g(4)); m[4]=num(g(5))
-    m[5]=g(6); m[6]=g(7); m[7]=g(8) or "(None)"; m[8]=g(9) or "(None)"
-    m[9]=g(10); m[10]=g(11); m[11]=g(12) or "(None)"; m[12]=mast(g(13))
-    m[13]=num(g(16)); m[14]=num(g(17)); m[15]=num(g(18)); m[16]=num(g(19))
-    m[17]=num(g(20)); m[18]=num(g(21)); m[19]=num(g(22)); m[20]=num(g(23)); m[21]=num(g(24))
-    m[22]=num(g(37)); m[23]=num(g(39)); m[24]=num(g(40)); m[25]=num(g(41)); m[26]=num(g(42))
-    m[27]=num(g(43)); m[28]=num(g(44)); m[29]=num(g(45)); m[30]=num(g(46))
-    m[31]=num(g(65)); m[32]=num(g(66)); m[33]=num(g(67))
-    m[34]=yn(g(68)); m[35]=yn(g(69)); m[36]=num(g(70)); m[37]=num(g(71)); m[38]=yn(g(72))
+    m[5]=g(6); m[6]=g(7); m[7]=g(8) or "(None)"; m[8]=g(10) or "(None)"
+    m[9]=g(11); m[10]=g(12); m[11]=g(13) or "(None)"; m[12]=mast(g(14))
+    m[13]=num(g(17)); m[14]=num(g(18)); m[15]=num(g(19)); m[16]=num(g(20))
+    m[17]=num(g(21)); m[18]=num(g(22)); m[19]=num(g(23)); m[20]=num(g(24)); m[21]=num(g(25))
+    m[22]=num(g(38)); m[23]=num(g(40)); m[24]=num(g(41)); m[25]=num(g(42)); m[26]=num(g(43))
+    m[27]=num(g(44)); m[28]=num(g(45)); m[29]=num(g(46)); m[30]=num(g(47))
+    m[31]=num(g(66)); m[32]=num(g(67)); m[33]=num(g(68))
+    m[34]=yn(g(69)); m[35]=yn(g(70)); m[36]=num(g(71)); m[37]=num(g(72)); m[38]=yn(g(73))
     m[39]=tcon; m[40]=econ; m[41]=scon; m[42]=ucon; m[43]=n(tcon,econ,scon,ucon)
-    m[44]=yn(g(77)); m[45]=yn(g(78)); m[46]=yn(g(79)); m[47]=yn(g(80))
-    m[48]=yn(g(81)); m[49]=yn(g(82)); m[50]=yn(g(83)); m[51]=yn(g(84)); m[52]=yn(g(85))
-    m[53]=yn(g(86)); m[54]=yn(g(87)); m[55]=yn(g(88))
-    m[56]=g(89) or "(None)"; m[57]=g(90) or "(None)"; m[58]=g(91) or "(None)"
-    m[59]=g(113).strip(); m[60]=g(115).strip(); m[61]=g(117).strip()
+    m[44]=yn(g(78)); m[45]=yn(g(79)); m[46]=yn(g(80)); m[47]=yn(g(81))
+    m[48]=yn(g(82)); m[49]=yn(g(83)); m[50]=yn(g(84)); m[51]=yn(g(85)); m[52]=yn(g(86))
+    m[53]=yn(g(87)); m[54]=yn(g(88)); m[55]=yn(g(89))
+    m[56]=g(90) or "(None)"; m[57]=g(91) or "(None)"; m[58]=g(92) or "(None)"
+    m[59]=g(114).strip(); m[60]=g(116).strip(); m[61]=g(118).strip()
     m[62]=stations; m[63]=abil; m[64]=", ".join(seats); m[65]=seatData
+    m[66]=g(9) or "(None)"                          # 60th Icons Tier (spreadsheet column J)
+    m[67]="Yes" if g(9).strip() else "No"           # 60th Ship? (has any 60th Icons Tier)
     return m
 
 CAREER_NAME={0:"Uni",1:"Tac",2:"Eng",3:"Sci"}
@@ -131,7 +136,7 @@ def split_science_destroyer(m):
 out=[]
 for r in rows:
     v=[C(c) for c in r["c"]]
-    if len(v)<=98 or v[98].strip().upper()!="TRUE": continue
+    if len(v)<=99 or v[99].strip().upper()!="TRUE": continue
     out.append(transform(r))
 # split Science Destroyers (Tac/Sci Modes flag at model idx 51) into two entries each
 expanded=[]
@@ -144,7 +149,8 @@ for i,m in enumerate(out): m[0]=i
 
 # numeric-vs-string per model idx (over displayed attribute idxs)
 CAT=[("Release Date",2),("Year",3),
-("Original Source",5),("Source",6),("Bundle",7),("Starter Bundle",8),("Faction",9),
+("Original Source",5),("Source",6),("Bundle",7),("Starter Bundle",8),
+("60th Ship",67),("60th Icons Tier",66),("Faction",9),
 ("Origin",10),("Family",11),("Mastery Package",12),("Max Tactical Seat",13),
 ("Max Engineering Seat",14),("Max Science Seat",15),("Max Universal Seat",16),
 ("Max Intelligence Seat",17),("Max Command Seat",18),("Max Pilot Seat",19),
