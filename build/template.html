@@ -53,6 +53,25 @@
   select:disabled{opacity:.5; cursor:not-allowed}
   select.op{min-width:64px; width:64px; text-align:center}
   select option{background:var(--field-bg); color:var(--text)}
+  /* AND / OR joiner in front of every filter row after the first */
+  select.join{
+    min-width:76px; width:76px; text-align:center; font-weight:700;
+    padding-left:10px; padding-right:24px; background-position:right 6px center;
+  }
+  .join-label{
+    min-width:76px; width:76px; flex:0 0 76px; text-align:center;
+    color:var(--muted); font-size:.85em; font-weight:700;
+    text-transform:uppercase; letter-spacing:.04em;
+  }
+  /* plain-English readout of how the filter rows combine */
+  .logic-summary{
+    margin:.85em 0 .1em; padding:.55em .7em;
+    background:var(--field-bg); border:1px solid var(--field-border); border-radius:6px;
+    color:var(--text); font-size:.9em; line-height:1.55;
+  }
+  .logic-summary .ls-title{color:var(--muted); font-weight:700; margin-right:.45em}
+  .logic-summary .ls-op{color:var(--accent); font-weight:700}
+  .logic-summary .ls-and{color:var(--muted); font-weight:700}
   .icon-btn{
     background:none; border:none; color:var(--accent);
     font-size:1.5em; line-height:1; cursor:pointer; padding:2px 6px;
@@ -265,8 +284,13 @@
 
   <fieldset>
     <legend>Ship Attributes</legend>
-    <p class="hint">Choose the attributes that you would like your ship to have.</p>
+    <p class="hint">Choose the attributes that you would like your ship to have. Use the
+       <strong>AND</strong>/<strong>OR</strong> box in front of each row to say how it combines
+       with the row above — e.g. <em>Max Intelligence Seat&nbsp;≥&nbsp;4</em>
+       <strong>OR</strong> <em>Max Temporal Seat&nbsp;≥&nbsp;1</em>. AND binds tighter than OR,
+       and the summary below always shows exactly how your filters are grouped.</p>
     <div class="rows" id="attrRows"></div>
+    <div class="logic-summary" id="attrLogic" hidden></div>
   </fieldset>
 
   <fieldset>
@@ -401,6 +425,19 @@
 
     <h3>Release notes</h3>
     <ul class="releases">
+      <li class="release">
+        <div class="rel-ver"><span class="rel-num">v1.1.0</span><span class="rel-tagline">27 Sep 2026</span></div>
+        <ul>
+          <li>Added an <strong>OR</strong> option to the Ship Attributes filter. Every row after the
+              first now has an <strong>AND</strong>/<strong>OR</strong> box, so you can search for
+              things like <em>full Intel spec seating</em> <strong>OR</strong> <em>Temporal
+              seating</em> in one go instead of running two separate searches.</li>
+          <li><strong>AND</strong> binds tighter than <strong>OR</strong>, and a "Matching:" summary
+              under the filter rows spells out exactly how your filters are grouped.</li>
+          <li>Bridge Officer Abilities are still combined with AND (they're matched against real
+              seat assignments); the OR option applies to the Ship Attributes filter.</li>
+        </ul>
+      </li>
       <li class="release">
         <div class="rel-ver"><span class="rel-num">v1.0.1</span><span class="rel-tagline">17 Sep 2026</span></div>
         <ul>
@@ -597,8 +634,8 @@ let SHIPS = APPDATA.seed.slice();
 let updatedLabel = BUILD_DATE;
 
 /* ---------- UI state ---------- */
-let attrFilters = [];        // [{idx, op, value}]
-let attrDraft = { idx:"", op:"", value:"" };
+let attrFilters = [];        // [{idx, op, value, join}]  join: "AND"|"OR", how it binds to the row above
+let attrDraft = { idx:"", op:"", value:"", join:"AND" };
 let detailCols = [];         // [idx, ...]  (extra result columns)
 let detailDraft = "";
 let boffFilters = [];        // [{typespec, name, level, rank, typeorspec, display}]
@@ -627,24 +664,40 @@ function distinctValues(idx){
   return arr;
 }
 
-function matches(ship){
-  for(const f of attrFilters){
-    const numeric = CAT_BY_IDX[f.idx] && CAT_BY_IDX[f.idx].numeric;
-    if(numeric){
-      const a = Number(ship[f.idx]), b = Number(f.value);
-      if(f.op==="="  && !(a===b)) return false;
-      if(f.op==="!=" && !(a!==b)) return false;
-      if(f.op===">"  && !(a>b))   return false;
-      if(f.op===">=" && !(a>=b))  return false;
-      if(f.op==="<=" && !(a<=b))  return false;
-    } else {
-      const a = String(ship[f.idx]), b = String(f.value);
-      if(f.op==="="  && a!==b) return false;
-      if(f.op==="!=" && a===b) return false;
-      if(f.op==="Contains" && !a.toLowerCase().includes(b.toLowerCase())) return false;
-    }
+/* does one ship satisfy one attribute filter? */
+function matchesFilter(ship, f){
+  const numeric = CAT_BY_IDX[f.idx] && CAT_BY_IDX[f.idx].numeric;
+  if(numeric){
+    const a = Number(ship[f.idx]), b = Number(f.value);
+    if(f.op==="=")  return a===b;
+    if(f.op==="!=") return a!==b;
+    if(f.op===">")  return a>b;
+    if(f.op===">=") return a>=b;
+    if(f.op==="<=") return a<=b;
+    return true;
   }
+  const a = String(ship[f.idx]), b = String(f.value);
+  if(f.op==="=")  return a===b;
+  if(f.op==="!=") return a!==b;
+  if(f.op==="Contains") return a.toLowerCase().includes(b.toLowerCase());
   return true;
+}
+
+/* AND binds tighter than OR: split the rows into runs of AND-joined filters.
+   A row joined with "OR" starts a new run. A ship matches when any run matches
+   completely, i.e. (A AND B) OR (C) OR (D AND E). */
+function attrGroups(){
+  const groups = [];
+  attrFilters.forEach((f, i) => {
+    if(i === 0 || f.join === "OR") groups.push([f]);
+    else groups[groups.length - 1].push(f);
+  });
+  return groups;
+}
+
+function matchesGroups(ship, groups){
+  if(!groups.length) return true;
+  return groups.some(g => g.every(f => matchesFilter(ship, f)));
 }
 
 /* build a <select> element */
@@ -680,12 +733,54 @@ function renderAttrRows(){
     host.appendChild(buildAttrRow(f, i));
   });
   host.appendChild(buildAttrRow(attrDraft, null));
+  renderAttrLogic();
+}
+
+/* plain-English readout of how the committed rows group together */
+function renderAttrLogic(){
+  const host = document.getElementById("attrLogic");
+  if(!host) return;
+  const groups = attrGroups();
+  if(groups.length < 2 && !groups.some(g => g.length > 1)){ host.hidden = true; host.innerHTML = ""; return; }
+
+  const OP_TEXT = { "=":"=", "!=":"≠", ">":">", ">=":"≥", "<=":"≤", "Contains":"contains" };
+  const esc = s => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  const term = f => {
+    const lab = (CAT_BY_IDX[f.idx] && CAT_BY_IDX[f.idx].label) || ("Attribute " + f.idx);
+    return esc(lab) + " " + esc(OP_TEXT[f.op] || f.op) + " " + esc(f.value);
+  };
+  const parts = groups.map(g =>
+    (groups.length > 1 && g.length > 1 ? "(" : "")
+    + g.map(term).join(' <span class="ls-and">AND</span> ')
+    + (groups.length > 1 && g.length > 1 ? ")" : ""));
+
+  host.innerHTML = '<span class="ls-title">Matching:</span>'
+    + parts.join(' <span class="ls-op">OR</span> ');
+  host.hidden = false;
 }
 
 function buildAttrRow(f, index){
   const row = document.createElement("div");
   row.className = "filter-row";
   const isDraft = index === null;
+
+  /* first row has nothing to join to; every later row picks AND or OR */
+  const showJoin = isDraft ? attrFilters.length > 0 : index > 0;
+  if(showJoin){
+    const joinSel = makeSelect(["AND","OR"], f.join || "AND", null, "join");
+    joinSel.title = "How this row combines with the row above";
+    joinSel.addEventListener("change", () => {
+      const target = isDraft ? attrDraft : attrFilters[index];
+      target.join = joinSel.value;
+      if(!isDraft) applyAndRender();
+      renderAttrLogic();
+    });
+    row.appendChild(joinSel);
+  } else {
+    const lab = document.createElement("span");
+    lab.className = "join-label"; lab.textContent = "Where";
+    row.appendChild(lab);
+  }
 
   const attrSel = makeSelect(attrOptions(), f.idx, "Select Attribute");
   const numeric = f.idx !== "" && CAT_BY_IDX[f.idx] && CAT_BY_IDX[f.idx].numeric;
@@ -724,8 +819,9 @@ function buildAttrRow(f, index){
   btn.addEventListener("click", () => {
     if(isDraft){
       if(attrDraft.idx === "" || attrDraft.value === "") return;
-      attrFilters.push({ idx:Number(attrDraft.idx), op:attrDraft.op, value:attrDraft.value });
-      attrDraft = { idx:"", op:"", value:"" };
+      attrFilters.push({ idx:Number(attrDraft.idx), op:attrDraft.op, value:attrDraft.value,
+                         join: attrDraft.join === "OR" ? "OR" : "AND" });
+      attrDraft = { idx:"", op:"", value:"", join:"AND" };
       applyAndRender(); renderAttrRows();
     } else {
       attrFilters.splice(index, 1);
@@ -866,8 +962,9 @@ function renderTable(){
   const bq = boffFilters.length
     ? buildBoffQuery(boffFilters.map(f => ({ rank:f.rank, typeorspec:f.typeorspec })))
     : null;
+  const groups = attrGroups();
   const matched = SHIPS.filter(s =>
-    matches(s) && (!bq || shipMatchesBoff(s[IDX_SEAT], bq)));
+    matchesGroups(s, groups) && (!bq || shipMatchesBoff(s[IDX_SEAT], bq)));
   matched.sort((a,b) => {
     const av = sortValueOf(a), bv = sortValueOf(b);
     if(av < bv) return -1*sortDir;

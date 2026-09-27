@@ -54,7 +54,13 @@ The app is organised into three tabs: **Filter**, **Pivot**, and **About**.
 
 - **Ship Attributes filter** — filter on any of 50+ attributes (Faction, Hull/Shield
   modifier, seats, consoles, weapons, traits, etc.) with `=`, `≠`, `>`, `≥`, `≤`, or
-  `Contains`. Add multiple filters (combined with AND).
+  `Contains`. Add as many filters as you like and combine them with **AND** or **OR**.
+- **AND / OR** — every filter row after the first has an `AND`/`OR` box that says how it
+  joins to the row above, so a single search can ask for *Max Intelligence Seat ≥ 4*
+  **OR** *Max Temporal Seat ≥ 1*. `AND` binds tighter than `OR` (so
+  `A AND B OR C` means `(A AND B) OR C`), and a **Matching:** line under the rows spells
+  out the resulting grouping in plain English. Bridge Officer Abilities are still
+  combined with AND, and are ANDed with the attribute result.
 - **Bridge Officer Abilities filter** — pick a Type → Ability → Level and the app finds
   every ship that can actually slot it, honouring bridge-officer seat ranks,
   specializations, and universal seats (a real per-seat assignment, so requesting two
